@@ -1136,10 +1136,10 @@
         const weekAgo = new Date(Date.now() - 7 * 86400000).toISOString().slice(0, 10);
 
         // 방문자
-        const { data: visitors } = await supa.from('visitors').select('visited_date');
+        const { data: visitors } = await supa.from('visitors').select('created_at');
         if (visitors) {
-            const todayCount = visitors.filter(v => v.visited_date === today).length;
-            const weekCount = visitors.filter(v => v.visited_date >= weekAgo).length;
+            const todayCount = visitors.filter(v => v.created_at.slice(0, 10) === today).length;
+            const weekCount = visitors.filter(v => v.created_at.slice(0, 10) >= weekAgo).length;
             document.getElementById('statToday').textContent = todayCount.toLocaleString();
             document.getElementById('statWeek').textContent = weekCount.toLocaleString();
             document.getElementById('statTotal').textContent = visitors.length.toLocaleString();
