@@ -1,0 +1,1411 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>뉴스스크랩 아카이브 | 아이스크림미디어</title>
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/static/pretendard.min.css">
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+
+        body {
+            font-family: 'Pretendard', sans-serif;
+            background: linear-gradient(to top, #fde8d8 0%, #fef3ec 40%, #fff8f5 70%, #ffffff 100%);
+            min-height: 100vh;
+            color: #1a1a1a;
+        }
+
+        /* ─── 헤더 ─── */
+        header {
+            background: #fff;
+            border-bottom: 1px solid #ebebeb;
+            padding: 0 48px;
+            height: 64px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            position: sticky;
+            top: 0;
+            z-index: 100;
+        }
+
+        .header-logo {
+            display: flex;
+            align-items: center;
+            gap: 16px;
+        }
+
+        .header-logo img { height: 32px; width: auto; }
+
+        .header-divider {
+            width: 1px;
+            height: 20px;
+            background: #e5e5e5;
+        }
+
+        .header-title { display: flex; flex-direction: column; }
+
+        .header-title span {
+            font-size: 15px;
+            font-weight: 700;
+            color: #111;
+            letter-spacing: -0.3px;
+        }
+
+        .header-title small {
+            font-size: 16px;
+            color: #e9460a;
+            font-weight: 700;
+            margin-top: 2px;
+        }
+
+        .header-badge {
+            font-size: 12px;
+            font-weight: 600;
+            color: #e9460a;
+            letter-spacing: 0.2px;
+        }
+
+        /* ─── 컨테이너 ─── */
+        .container {
+            max-width: 1560px;
+            margin: 0 auto;
+            padding: 36px 24px 80px;
+        }
+
+        /* ─── 메인 레이아웃 ─── */
+        .main-layout {
+            display: grid;
+            grid-template-columns: 272px 1fr;
+            gap: 32px;
+            align-items: start;
+        }
+
+        /* ─── 사이드바 ─── */
+        .sidebar {
+            background: #fff;
+            border-radius: 16px;
+            padding: 24px 20px;
+            height: fit-content;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.06), 0 4px 16px rgba(0,0,0,0.04);
+        }
+
+        .calendar-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 16px;
+        }
+
+        .calendar-header h3 {
+            font-size: 22px;
+            font-weight: 700;
+            color: #111;
+        }
+
+        .calendar-nav { display: flex; gap: 2px; }
+
+        .calendar-nav button {
+            width: 26px;
+            height: 26px;
+            border: none;
+            background: transparent;
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 11px;
+            color: #888;
+            transition: background 0.15s, color 0.15s;
+        }
+
+        .calendar-nav button:hover {
+            background: #f0f0f0;
+            color: #111;
+        }
+
+        .calendar-grid {
+            display: grid;
+            grid-template-columns: repeat(7, 1fr);
+            gap: 2px;
+            margin-bottom: 16px;
+        }
+
+        .day-header {
+            text-align: center;
+            font-size: 12px;
+            font-weight: 600;
+            color: #ccc;
+            padding: 5px 0;
+        }
+
+        .day {
+            aspect-ratio: 1;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 13px;
+            border-radius: 6px;
+            cursor: pointer;
+            position: relative;
+            font-weight: 400;
+            color: #444;
+            transition: background 0.12s;
+            user-select: none;
+        }
+
+        .day:hover:not(.other-month) { background: #f0f0f0; }
+        .day.other-month { color: #ddd; cursor: default; }
+
+        .day.today {
+            background: #e9460a;
+            color: #fff;
+            font-weight: 700;
+        }
+
+        .day.has-news::after {
+            content: '';
+            position: absolute;
+            bottom: 2px;
+            width: 3px;
+            height: 3px;
+            background: #e9460a;
+            border-radius: 50%;
+        }
+
+        .day.today.has-news::after { background: rgba(255,255,255,0.7); }
+
+        /* 드래그 범위 */
+        .day.in-range {
+            background: #fdeee8;
+            border-radius: 0;
+            color: #c73a07;
+        }
+
+        /* 선택된 날짜 — 연한 오렌지 (오늘 아닌 경우) */
+        .day.range-start:not(.today) {
+            background: #ffb899 !important;
+            color: #7a2200 !important;
+            font-weight: 700;
+            border-radius: 6px 0 0 6px;
+        }
+
+        .day.range-end:not(.today) {
+            background: #ffb899 !important;
+            color: #7a2200 !important;
+            font-weight: 700;
+            border-radius: 0 6px 6px 0;
+        }
+
+        .day.range-start.range-end:not(.today) { border-radius: 6px; }
+
+        /* 오늘이면서 선택된 경우 — 오늘 스타일 유지하되 테두리로 강조 */
+        .day.today.range-start,
+        .day.today.range-end {
+            background: #e9460a !important;
+            color: #fff !important;
+            outline: 2px solid #ffb899;
+            outline-offset: 1px;
+        }
+
+        .day.today.in-range { background: #fac8b4; color: #c73a07; }
+
+        /* 통계 */
+        .stats {
+            display: flex;
+            gap: 0;
+            margin-top: 16px;
+            padding-top: 16px;
+            border-top: 1px solid #f0f0f0;
+        }
+
+        .stat {
+            flex: 1;
+            text-align: center;
+        }
+
+        .stat + .stat {
+            border-left: 1px solid #f0f0f0;
+        }
+
+        .stat-number {
+            font-size: 20px;
+            font-weight: 700;
+            color: #111;
+            font-family: 'Pretendard', sans-serif;
+            letter-spacing: -0.5px;
+        }
+
+        .stat-label {
+            font-size: 12px;
+            color: #666;
+            margin-top: 2px;
+            font-weight: 400;
+        }
+
+        /* 오늘 기사 버튼 */
+        .reset-btn {
+            width: 100%;
+            margin-top: 14px;
+            padding: 9px;
+            background: #111;
+            border: none;
+            color: #fff;
+            border-radius: 8px;
+            font-weight: 600;
+            font-size: 12px;
+            cursor: pointer;
+            transition: background 0.18s, opacity 0.18s;
+            font-family: 'Pretendard', sans-serif;
+            letter-spacing: 0.2px;
+        }
+
+        .reset-btn:hover { background: #333; }
+
+        /* 북마크 필터 버튼 */
+        .bookmark-filter-btn {
+            width: 100%;
+            margin-top: 8px;
+            padding: 9px;
+            background: #f7f7f7;
+            border: 1.5px solid #e5e5e5;
+            color: #555;
+            border-radius: 8px;
+            font-weight: 600;
+            font-size: 13px;
+            cursor: pointer;
+            transition: all 0.18s;
+            font-family: 'Pretendard', sans-serif;
+            letter-spacing: 0.2px;
+        }
+        .bookmark-filter-btn:hover { background: #f0f0f0; }
+        .bookmark-filter-btn.active {
+            background: #fff5f2;
+            border-color: #e9460a;
+            color: #e9460a;
+        }
+
+        /* 읽음 표시 */
+        .news-card.read { opacity: 0.5; }
+        .news-card.read:hover { opacity: 1; }
+
+        .read-badge {
+            position: absolute;
+            top: 8px;
+            left: 8px;
+            background: rgba(0,0,0,0.5);
+            color: #fff;
+            font-size: 10px;
+            font-weight: 600;
+            padding: 2px 8px;
+            border-radius: 20px;
+            z-index: 2;
+            pointer-events: none;
+        }
+
+        /* 북마크 버튼 */
+        .bookmark-btn {
+            position: absolute;
+            top: 8px;
+            right: 8px;
+            width: 32px;
+            height: 32px;
+            border-radius: 50%;
+            background: rgba(255,255,255,0.92);
+            border: none;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 16px;
+            transition: transform 0.15s, background 0.15s;
+            z-index: 2;
+            backdrop-filter: blur(4px);
+            line-height: 1;
+        }
+        .bookmark-btn:hover { transform: scale(1.15); background: #fff; }
+        .bookmark-btn.active { color: #e9460a; }
+
+        /* 카테고리 필터 */
+        .filter-panel {
+            margin-top: 20px;
+            padding-top: 16px;
+            border-top: 1px solid #f0f0f0;
+        }
+
+        .filter-panel-title {
+            font-size: 22px;
+            font-weight: 700;
+            color: #444;
+            margin-bottom: 12px;
+        }
+
+        .category-filter-item {
+            display: flex;
+            align-items: flex-start;
+            gap: 8px;
+            margin-bottom: 9px;
+            cursor: pointer;
+        }
+
+        .category-filter-item input[type="checkbox"] {
+            accent-color: #e9460a;
+            width: 13px;
+            height: 13px;
+            cursor: pointer;
+            margin-top: 2px;
+            flex-shrink: 0;
+        }
+
+        .category-filter-item label {
+            font-size: 14px;
+            color: #555;
+            cursor: pointer;
+            line-height: 1.5;
+        }
+
+        /* ─── 인기 게시물 ─── */
+        .popular-panel {
+            margin-top: 20px;
+            padding-top: 16px;
+            border-top: 1px solid #f0f0f0;
+        }
+
+        .popular-panel-title {
+            font-size: 22px;
+            font-weight: 700;
+            color: #444;
+            margin-bottom: 10px;
+        }
+
+        .popular-item {
+            display: flex;
+            align-items: flex-start;
+            gap: 10px;
+            padding: 8px 0;
+            text-decoration: none;
+            color: inherit;
+            border-bottom: 1px solid #f5f5f5;
+        }
+
+        .popular-item:last-child { border-bottom: none; }
+
+        .popular-item:hover .popular-item-title { color: #e9460a; }
+
+        .popular-rank {
+            font-family: 'Pretendard', sans-serif;
+            font-size: 12px;
+            font-weight: 700;
+            color: #e9460a;
+            flex-shrink: 0;
+            width: 14px;
+            line-height: 1.5;
+        }
+
+        .popular-rank.rank-4,
+        .popular-rank.rank-5 { color: #ccc; }
+
+        .popular-item-title {
+            font-size: 13px;
+            color: #1a1a1a;
+            line-height: 1.5;
+            display: -webkit-box;
+            -webkit-line-clamp: 2;
+            -webkit-box-orient: vertical;
+            overflow: hidden;
+            transition: color 0.15s;
+        }
+
+        .popular-item-title.top { font-weight: 700; }
+        .popular-item-title.rest { font-weight: 400; }
+
+        .popular-empty {
+            font-size: 11px;
+            color: #ccc;
+            padding: 8px 0;
+        }
+
+        /* ─── 콘텐츠 영역 ─── */
+        .content { min-width: 0; }
+
+        .feed-title-section {
+            margin-bottom: 32px;
+        }
+
+        .feed-title-row {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            gap: 16px;
+        }
+
+        .feed-title {
+            font-size: 26px;
+            color: #111;
+            font-weight: 700;
+            letter-spacing: -0.8px;
+            line-height: 1.2;
+        }
+
+        .feed-subtitle {
+            font-size: 13px;
+            color: #aaa;
+            font-weight: 400;
+            margin-top: 5px;
+        }
+
+        /* 검색 */
+        .search-box input {
+            padding: 8px 16px 8px 38px;
+            border: 1.5px solid #e5e5e5;
+            border-radius: 24px;
+            font-size: 13px;
+            outline: none;
+            width: 320px;
+            font-family: 'Pretendard', sans-serif;
+            transition: border-color 0.2s;
+            color: #333;
+            background: #fff url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='14' height='14' viewBox='0 0 24 24' fill='none' stroke='%23bbb' stroke-width='2.5' stroke-linecap='round' stroke-linejoin='round'%3E%3Ccircle cx='11' cy='11' r='8'/%3E%3Cpath d='M21 21l-4.35-4.35'/%3E%3C/svg%3E") no-repeat 14px center;
+        }
+
+        .search-box input:focus { border-color: #111; }
+        .search-box input::placeholder { color: #888; }
+
+        /* ─── 카테고리 섹션 ─── */
+        .category-section {
+            margin-bottom: 56px;
+            animation: fadeIn 0.4s ease forwards;
+        }
+
+        .category-header {
+            display: flex;
+            align-items: baseline;
+            gap: 10px;
+            margin-bottom: 20px;
+        }
+
+        .category-badge { display: none; }
+
+        .category-title {
+            font-size: 22px;
+            font-weight: 700;
+            color: #e9460a;
+            letter-spacing: -0.2px;
+        }
+
+        .category-count { display: none; }
+
+        /* ─── 뉴스 그리드 ─── */
+        .news-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+            gap: 20px;
+        }
+
+        /* ─── 뉴스 카드 링크 래퍼 ─── */
+        .news-card-link {
+            text-decoration: none;
+            color: inherit;
+            display: block;
+            height: 100%;
+        }
+
+        /* ─── 뉴스 카드 ─── */
+        .news-card {
+            background: #fff;
+            border-radius: 14px;
+            overflow: hidden;
+            transition: transform 0.25s cubic-bezier(0.25, 0.46, 0.45, 0.94),
+                        box-shadow 0.25s;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.06), 0 2px 8px rgba(0,0,0,0.04);
+            display: flex;
+            flex-direction: column;
+            height: 100%;
+        }
+
+        .news-card:hover {
+            transform: translateY(-7px);
+            box-shadow: 0 2px 8px rgba(233,70,10,0.08),
+                        0 12px 36px rgba(233,70,10,0.18);
+        }
+
+        .news-image {
+            width: 100%;
+            height: 168px;
+            overflow: hidden;
+            position: relative;
+            background: #f0f0f0;
+        }
+
+        .news-image img {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+            transition: transform 0.4s ease;
+        }
+
+        .news-card:hover .news-image img { transform: scale(1.04); }
+
+        .news-image-fallback {
+            position: absolute;
+            inset: 0;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            background: linear-gradient(135deg, #1c1c2e 0%, #2a2a40 100%);
+            gap: 6px;
+        }
+
+        .news-image-fallback .fallback-bar {
+            width: 36px;
+            height: 2px;
+            background: #e9460a;
+            border-radius: 2px;
+            margin-bottom: 6px;
+        }
+
+        .news-image-fallback .fallback-text {
+            font-family: 'Pretendard', sans-serif;
+            font-size: 24px;
+            font-weight: 700;
+            color: rgba(255,255,255,0.9);
+            letter-spacing: 5px;
+        }
+
+        .news-image-fallback .fallback-sub {
+            font-size: 9px;
+            color: rgba(255,255,255,0.3);
+            letter-spacing: 2px;
+        }
+
+        .news-content {
+            padding: 18px 18px 16px;
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+        }
+
+        .news-meta {
+            margin-bottom: 8px;
+        }
+
+        .news-date {
+            font-size: 13px;
+            color: #bbb;
+            font-weight: 400;
+            font-family: 'Pretendard', sans-serif;
+        }
+
+        .news-title {
+            font-size: 16px;
+            font-weight: 700;
+            color: #111;
+            line-height: 1.55;
+            margin-bottom: 8px;
+            flex: 1;
+            letter-spacing: -0.2px;
+        }
+
+        .news-summary {
+            font-size: 13px;
+            color: #555;
+            line-height: 1.65;
+            margin-bottom: 14px;
+            display: -webkit-box;
+            -webkit-line-clamp: 2;
+            -webkit-box-orient: vertical;
+            overflow: hidden;
+            font-weight: 400;
+        }
+
+        .news-footer {
+            display: flex;
+            align-items: center;
+            margin-top: auto;
+        }
+
+        .share-btn {
+            position: absolute;
+            top: 8px;
+            right: 48px;
+            width: 32px;
+            height: 32px;
+            border-radius: 50%;
+            background: rgba(255,255,255,0.92);
+            border: none;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: transform 0.15s, background 0.15s;
+            z-index: 2;
+            backdrop-filter: blur(4px);
+        }
+        .share-btn:hover { transform: scale(1.15); background: #fff; }
+        .share-btn.copied { color: #22c55e; }
+
+        .news-source {
+            font-size: 13px;
+            color: #bbb;
+            font-weight: 500;
+        }
+
+        /* ─── 토스트 ─── */
+        .toast {
+            position: fixed;
+            bottom: 36px;
+            left: 50%;
+            transform: translateX(-50%) translateY(12px);
+            background: #111;
+            color: #fff;
+            font-size: 14px;
+            font-weight: 600;
+            padding: 10px 22px;
+            border-radius: 24px;
+            opacity: 0;
+            pointer-events: none;
+            transition: opacity 0.2s, transform 0.2s;
+            z-index: 9999;
+            white-space: nowrap;
+        }
+        .toast.show {
+            opacity: 1;
+            transform: translateX(-50%) translateY(0);
+        }
+
+        /* ─── 빈 상태 ─── */
+        .empty-state {
+            text-align: center;
+            padding: 100px 20px;
+        }
+
+        .empty-state-icon { font-size: 48px; margin-bottom: 12px; opacity: 0.4; }
+        .empty-state-text { font-size: 14px; color: #bbb; }
+
+        /* ─── 애니메이션 ─── */
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(12px); }
+            to   { opacity: 1; transform: translateY(0); }
+        }
+
+        /* ─── 반응형 ─── */
+        @media (max-width: 1024px) {
+            .main-layout { grid-template-columns: 1fr; }
+            .sidebar { position: static; }
+        }
+
+        @media (max-width: 768px) {
+            header { padding: 0 20px; }
+            .header-logo img { height: 26px; }
+            .header-badge { display: none; }
+            .news-grid { grid-template-columns: 1fr; gap: 14px; }
+            .feed-title { font-size: 20px; }
+        }
+    </style>
+</head>
+<body>
+
+    <!-- 배경 로고 워터마크 -->
+    <div style="
+        position: fixed;
+        bottom: -20px;
+        right: -20px;
+        width: 520px;
+        height: 520px;
+        background-image: url('./brand_logo/로고 이미지.png');
+        background-size: contain;
+        background-repeat: no-repeat;
+        background-position: bottom right;
+        opacity: 0.07;
+        pointer-events: none;
+        z-index: 0;
+    "></div>
+
+    <!-- 헤더 -->
+    <header>
+        <div class="header-logo">
+            <img src="./brand_logo/아이스크림미디어 로고.png" alt="아이스크림미디어">
+            <div class="header-divider"></div>
+            <div class="header-title">
+                <small>매일 아침 읽어야 하는 달달한 아이스크림 추천 기사 읽기</small>
+            </div>
+        </div>
+        <div class="header-badge">Education news clipping</div>
+    </header>
+
+    <div class="container">
+        <div class="main-layout">
+
+            <!-- 왼쪽: 달력 사이드바 -->
+            <div class="sidebar">
+                <div class="calendar">
+                    <div class="calendar-header">
+                        <h3 id="monthYear">2026년 3월</h3>
+                        <div class="calendar-nav">
+                            <button onclick="prevMonth()">◀</button>
+                            <button onclick="nextMonth()">▶</button>
+                        </div>
+                    </div>
+                    <div class="calendar-grid" id="calendarGrid"></div>
+                    <div class="stats">
+                        <div class="stat">
+                            <div class="stat-number" id="weekNews">0</div>
+                            <div class="stat-label">이번주 기사</div>
+                        </div>
+                        <div class="stat">
+                            <div class="stat-number" id="todayNews">0</div>
+                            <div class="stat-label">오늘 기사</div>
+                        </div>
+                    </div>
+                    <button class="bookmark-filter-btn" id="bookmarkFilterBtn" onclick="toggleBookmarkFilter()">☆ 북마크 모아보기</button>
+                    <div class="filter-panel">
+                        <div class="filter-panel-title">카테고리 필터</div>
+                        <div id="categoryFilters"></div>
+                    </div>
+                    <div class="popular-panel">
+                        <div class="popular-panel-title">인기 게시물</div>
+                        <div id="popularList"></div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- 오른쪽: 뉴스 콘텐츠 -->
+            <div class="content">
+                <div class="feed-title-section">
+                    <div class="feed-title-row">
+                        <div>
+                            <h2 class="feed-title" id="feedTitle">모든 뉴스</h2>
+                            <p class="feed-subtitle" id="feedSubtitle">총 0개의 뉴스</p>
+                        </div>
+                        <div class="search-box">
+                            <input type="text" id="searchInput" placeholder="다시 읽고 싶은 뉴스가 있으세요?" oninput="applyFilters()">
+                        </div>
+                    </div>
+                </div>
+                <div id="categoriesContainer"></div>
+            </div>
+
+        </div>
+    </div>
+
+
+    <script>
+        // ================================================================
+        // 뉴스 데이터
+        // 새 뉴스 추가 시 해당 카테고리 배열에 아래 형식으로 추가하세요:
+        // { date: 'YYYY-MM-DD', title: '제목', summary: '요약',
+        //   source: '출처', importance: 'urgent|important|positive',
+        //   url: 'https://...', imageUrl: '' }
+        // ================================================================
+        const newsDataByCategory = {
+            '아이스크림미디어 소식': [
+                { date: '2026-03-16', title: '[에듀플러스]아이스크림미디어 개인정보 유출…교사·학생 정보 포함에 교육계 우려 확산', summary: '아이스크림미디어의 개인정보 유출로 교원단체가 잇따라 성명을 발표하는 등 사용자의 우려가 커지고 있다. 교육계에서는 교사뿐만 아니라 학교 정보까지 담겨있는 만큼 기업의 발 빠른 대처와 후속 방안이 마련돼야 한다는 목소', source: '전자신문', importance: 'urgent', url: 'https://n.news.naver.com/mnews/article/030/0003407509?sid=102', imageUrl: 'https://imgnews.pstatic.net/image/030/2026/03/15/0003407509_001_20260316101709762.png?type=w800' },
+                { date: '2026-03-17', title: '[단독]\'교과부진\' \'한부모\' 명단을 복도에?···학교서 5년간 266만명 개인정보 유출', summary: '최근 5년간 초·중·고교와 대학교에서 300여건의 개인정보 유출사건이 발생해 학생·교직원 266만명의 성적, 가족관계 등 민감한 개인정보가 노출된 것으로 확인됐다. 대부분의 유출 사례는 교직원의 부주의 때문에 발생한', source: '경향신문', importance: 'urgent', url: 'https://n.news.naver.com/mnews/article/032/0003433712?sid=102', imageUrl: 'https://imgnews.pstatic.net/image/032/2026/03/17/0003433712_001_20260317062709626.png?type=w800' },
+                { date: '2026-03-17', title: '아이스크림미디어 교사 개인정보 유출 사태 어디까지 번질까?', summary: '[교육플러스=한재갑 기자] 에듀테크 기업 아이스크림미디어에서 발생한 교사 개인정보 유출 사건과 관련해 교원단체들이 잇따라 대응에 나서는 가운데, 실천교육교사모임이', source: '에듀플러스', importance: 'urgent', url: 'https://www.edpl.co.kr/news/articleView.html?idxno=20071', imageUrl: 'https://cdn.edpl.co.kr/news/photo/202603/20071_40081_5059.png' },
+                { date: '2026-03-17', title: '[교육타파] 아이스크림 개인정보 유출 8일째…교원단체 압박 거세지고, 업체는 "AI 교과서는 무관" 해명', summary: '본지가 지난 11일 보도한 아이스크림미디어 개인정보 유출 사태가 8일째를 맞은 16일, 초등교사노동조합(위원장 강석조, 이하 초등교사노조)과 교사노동조합연맹(위원', source: '교육JB', importance: 'urgent', url: 'https://edujb.com/news/articleView.html?idxno=7280', imageUrl: 'https://cdn.edujb.com/news/photo/202603/7280_6965_1421.jpg' },
+                { date: '2026-03-18', title: '교사 17만명 어디까지 털렸나…\'아이스크림\' 정보 유출 일주일째 깜깜', summary: '에듀테크기업 아이스크림미디어의 회원 개인정보 유출 사태가 일주일이 지난 가운데 아직 정보 유출 규모도 확인되지 않아 현장 교사들의 불안이 커지고 있다. 아이스크림미디어는 지난 11일 홈페이지 공지를 통해 보안 사고로', source: '뉴스1', importance: 'urgent', url: 'https://n.news.naver.com/mnews/article/421/0008829575?sid=102', imageUrl: 'https://imgnews.pstatic.net/image/421/2026/03/17/0008829575_001_20260317101205503.jpg?type=w800' },
+                { date: '2026-03-19', title: '[교육타파] 아이스크림 유출 사태 채 가시기도 전에…이번엔 강원교육청 교직원 5천 명 개인정보 유출', summary: '아이스크림미디어 개인정보 유출 사태로 전국 교육 현장이 들끓고 있는 가운데, 이번엔 강원특별자치도교육청이 교직원 5천여 명의 개인정보를 유출한 사실이 뒤늦게 드러', source: '교육JB', importance: 'urgent', url: 'https://edujb.com/news/articleView.html?idxno=7301', imageUrl: 'https://cdn.edujb.com/news/photo/202603/7301_6992_1928.jpg' },
+            ],
+            '국가 정책 및 교육 제도 동향': [
+                { date: '2026-03-16', title: '교육부, \'데이터로 읽는 우리 교육\' 연재 시작', summary: '교육부와 한국교육개발원은 그동안 공표해 온 각종 교육 관련 통계와 공시 자료를 주제별로 묶어 국민의 눈높이에서 해설한 \'데이터로 읽는 우리 교육\'을 발간한다고 15일 밝혔다. 그간 교육부는 교육 여건, 교육 활동,', source: '교육부', importance: 'positive', url: 'https://n.news.naver.com/mnews/article/448/0000596646?sid=102', imageUrl: 'https://imgnews.pstatic.net/image/448/2026/03/15/2026031590068_0_20260315162507814.png?type=w800' },
+                { date: '2026-03-16', title: '학생들 "금일이 금요일?"…문해력 논란 커지자 국교위 \'문해력 특위\' 만든다', summary: '국가교육위원회는 학생 문해력 저하 문제가 확산하자 원인 분석과 정책 대안을 마련하기 위해 \'문해력 특별위원회\' 신설을 의결했다.', source: '뉴스1', importance: 'important', url: 'https://n.news.naver.com/mnews/article/421/0008826211?sid=102', imageUrl: 'https://imgnews.pstatic.net/image/421/2026/03/15/0008826211_001_20260315102814773.jpg?type=w800' },
+                { date: '2026-03-16', title: '지난해 \'교육 물가\' 15년 만에 최대폭 상승···대학 등록금 인상이 밀어올렸다', summary: '지난해 교육 물가가 15년 만에 가장 큰 폭으로 상승했다. 사립대를 중심으로 등록금이 오른 여파로 풀이된다. 올해도 전국 4년제 대학 3곳 중 2곳이 등록금을 올려 교육 물가를 상승시킬 것이란 전망이 나온다. 16일', source: '경향신문', importance: 'important', url: 'https://n.news.naver.com/mnews/article/032/0003433458?sid=102', imageUrl: 'https://imgnews.pstatic.net/image/032/2026/03/16/0003433458_001_20260316104107942.jpeg?type=w800' },
+                { date: '2026-03-17', title: '교육부, AI담당 교사 연수과정 개발..."올해 3000명 이수"', summary: '교육부는 초·중등 교원의 AI 교육 역량 강화를 위해 \'인공지능 교육 담당교원 역량강화 연수 과정\'을 개발하고 2026년 5월부터 운영한다.', source: '이데일리', importance: 'positive', url: 'https://n.news.naver.com/mnews/article/018/0006236263?sid=102', imageUrl: 'https://imgnews.pstatic.net/image/018/2026/03/16/0006236263_001_20260316120220537.jpg?type=w800' },
+                { date: '2026-03-17', title: '"학폭, 초등이 가장 높아"…\'관계회복 숙려제\' 본격 도입', summary: '교육부가 초등 저학년을 대상으로 경미한 학교폭력 사안에 대해서는 심의 이전 관계회복 프로그램을 실시하는 제도를 본격 도입한다. 교육부는 16일 서울정부청사에서 새롭게 구성된 제7기 학교폭력대책위원회(학폭위) 공동위원', source: '뉴시스', importance: 'important', url: 'https://n.news.naver.com/mnews/article/003/0013825704?sid=102', imageUrl: 'https://imgnews.pstatic.net/image/003/2026/03/17/NISI20260316_0002085285_web_20260316175348_20260317091424197.jpg?type=w800' },
+                { date: '2026-03-18', title: '어린이집 교사 보육활동 침해 시 \'엄정 조치\'…심리·법률지원 제공', summary: '교육부가 보육교직원 보호를 위한 법적 기반을 마련했다. 17일 국무회의에서 \'영유아보육법 시행령\' 일부개정령안이 심의·의결됐다. 이번 개정은 작년 5월 발표된 \'보육교직원 보육활동 보호 기본계획\'의 후속 조치다. 개', source: '전자신문', importance: 'important', url: 'https://n.news.naver.com/mnews/article/030/0003408270?sid=101', imageUrl: 'https://imgnews.pstatic.net/image/030/2026/03/17/0003408270_001_20260317140616823.jpg?type=w800' },
+                { date: '2026-03-18', title: '[에듀플러스][단독]교육부 \'비업무 사이트 차단\' 지침에 학교 혼란…"서울은 되고 경기는 막혔다"', summary: '교육부와 교육청의 \'비업무 사이트 접속 정책\'으로 새 학기 학교 현장에서 혼란이 빚어졌다. 같은 교육부 지침인데도 서울에서는 카카오톡 등 외부 사이트 접속이 가능했던 반면, 경기도에서는 접속이 차단되며 업무에 차질이', source: '전자신문', importance: 'important', url: 'https://n.news.naver.com/mnews/article/030/0003408261?sid=102', imageUrl: 'https://imgnews.pstatic.net/image/030/2026/03/17/0003408261_001_20260317193357499.png?type=w800' },
+                { date: '2026-03-19', title: '인공지능 중점학교 1141곳 선정 AI 수업 확대 등 385억 지원', summary: '자료 교육부 ▶ 교육부, 인공지능 중점학교 운영 ▶ 2028년까지 단계적 확대▶ 융합교육과정 운영·윤리교육 강화 교육부가 초·중·고등학교 현장에 체계적인 인공지능(AI) 교육을 안 - 정책브리핑 | 뉴스 | 정책뉴스', source: '정책브리핑', importance: 'positive', url: 'https://www.korea.kr/news/policyNewsView.do?newsId=148960798&call_from=naver_news', imageUrl: 'https://www.korea.kr/newsWeb/resources/attaches/2026.03/13/34c44b6509149be909575174fa281250.jpg' },
+                { date: '2026-03-19', title: '"지식보다 질문하는 힘"…AI 시대 교육혁명 방향은?', summary: '정부는 인프라·인재·교육·법제도·산업·안전을 아우르는 \'대한민국 인공지능 행동계획\'을 확정하고 AI 3대 강국 도약을 위한 범정부 실행 전략을 추진한다.', source: 'EBS뉴스', importance: 'positive', url: 'https://news.ebs.co.kr/ebsnews/allView/60704652/N', imageUrl: 'https://static.ebs.co.kr/images/public/2026/03/18/18/58/22/4e4d0c10-f179-4e3d-8a35-a84c7a15e245.jpg' },
+                { date: '2026-03-19', title: '9월부터 유아 영어-수학 학원 \'레벨테스트\' 금지', summary: '9월부터 이른바 ‘영어유치원’이라고 불리는 유아 대상 영어학원 등에서 학생 모집이나 수준 평가를 목적으로 한 레벨테스트가 금지된다. 일부 학원에서 ‘4세 고시’, ‘7세 고시’라고 불릴 정도로 사교육이 과열되고, 유', source: '동아일보', importance: 'important', url: 'https://n.news.naver.com/mnews/article/020/0003705012?sid=102', imageUrl: 'https://imgnews.pstatic.net/image/020/2026/03/18/0003705012_001_20260318110312720.jpg?type=w800' },
+            ],
+            '지역 교육 현장 소식': [
+                { date: '2026-03-16', title: '[단독] "못생겼어" 말다툼까지 학폭 소송… 전담 재판부 두배로', summary: '입시에 학폭 반영하자 소송 늘어 작년 3월 서울의 한 고등학생이 학교 폭력을 당했다고 신고했다. A양이 1년 넘게 “화장 좀 했으면 좋겠다. 쌩얼은 못생겼다”는 등 외모 관련 지적을 했다는 내용이었다. 신고를 받은', source: '조선일보', importance: 'important', url: 'https://n.news.naver.com/mnews/article/023/0003964738?sid=102', imageUrl: 'https://imgnews.pstatic.net/image/023/2026/03/16/0003964738_001_20260316152315319.jpg?type=w800' },
+                { date: '2026-03-16', title: '"교육부장관님, 뭐하고 계시나요?"…교육비 등골 휘는 아빠엄마들 "답답해"', summary: '서울 학생 10명 중 9명 “사교육 경험” 학생 1인당 월평균 사교육비 66만3000원 #맞벌이 부부 A씨는 우리나라 교육 정책만 보면 속이 터진다고 한다. 공교육을 제치고 부모들이 등골 휘는 사교육 현장으로 아이들', source: '매일경제', importance: 'important', url: 'https://n.news.naver.com/mnews/article/009/0005650301?sid=102', imageUrl: 'https://imgnews.pstatic.net/image/009/2026/03/15/0005650301_001_20260315113809985.jpg?type=w800' },
+                { date: '2026-03-16', title: '전교생 30% 이상 이주배경학생인 밀집학교, 5년새 2.6배↑', summary: '이주배경학생 밀집학교도 최근 5년간 2.6배나 증가했다. 학령인구가 줄고 있지만, 이주배경학생 수는 지난해 20만 명을 돌파해 전체 학령인구의 4%를 차지한 덕분이다. 15일 국회 교육위원회 소속 더불어민주당 진선미', source: '부산일보', importance: 'important', url: 'https://n.news.naver.com/mnews/article/079/0004124835?sid=102', imageUrl: 'https://imgnews.pstatic.net/image/079/2026/03/15/0004124835_001_20260315103110835.jpg?type=w800' },
+                { date: '2026-03-17', title: '교사 10명 중 2명 "문해력 가르칠 방법 몰라"…\'문해력 특위\' 가동된다', summary: '교사 10명 중 2명은 학생에게 문해력을 지도하는 방법을 잘 모른다는 연구 결과가 나왔다. 공교육 현장에서 읽기·이해 능력 교육이 충분히 이뤄지지 않는 가운데 국가교육위원회(국교위)가 최근 \'문해력 특별위원회\'를 꾸', source: '머니투데이', importance: 'important', url: 'https://n.news.naver.com/mnews/article/008/0005330592?sid=102', imageUrl: 'https://imgnews.pstatic.net/image/008/2026/03/16/0005330592_001_20260317041628418.jpg?type=w800' },
+                { date: '2026-03-17', title: '"학교 95% 교사가 \'학맞통\' 담당해 업무 과중"', summary: '경기도 내 초등학교에 근무하는 교사 조모 씨는 새 학기가 시작하자마자 숨이 턱 막혔다. 개학 당일 학교장이 조 씨에게 600명이 넘는 전교생 중 기초학력 미달 학생이 몇 명인지, 이주배경학생과 차상위계층 학생은 각각', source: '이데일리', importance: 'important', url: 'https://n.news.naver.com/mnews/article/018/0006236690?sid=102', imageUrl: 'https://imgnews.pstatic.net/image/018/2026/03/17/0006236690_001_20260317060609894.jpg?type=w800' },
+                { date: '2026-03-17', title: '학교 울타리 넘어 \'마을 돌봄\'으로…초등 방과후 돌봄체계 전환 필요', summary: '초등학생 대상의 방과후 돌봄 정책을 학교 중심에서 지역사회 중심으로 재편해야 한다는 지적이 제기됐다. 저출산과 맞벌이 가정 증가로 초등학생 돌봄 수요가 빠르게 늘고 있지만, 현재의 돌봄 체계는 정부부처 및 지자체 간', source: '서울경제', importance: 'positive', url: 'https://n.news.naver.com/mnews/article/011/0004599996?sid=102', imageUrl: 'https://imgnews.pstatic.net/image/011/2026/03/17/0004599996_001_20260317063024698.png?type=w800' },
+                { date: '2026-03-18', title: 'IB-AI 수업 통했다… 대구 사교육비 \'뚝\'', summary: '대구시교육청이 사교육 의존도를 낮추기 위해 추진해온 공교육 혁신 정책이 가시적인 성과를 내고 있다. 비판적이고 창의적인 학습이 가능한 분위기를 학교 현장에 안착시키겠다는 목표가 점차 결실로 이어지고 있는 것이다. 대', source: '동아일보', importance: 'positive', url: 'https://n.news.naver.com/mnews/article/020/0003704927?sid=102', imageUrl: 'https://imgnews.pstatic.net/image/020/2026/03/18/0003704927_001_20260318043359264.jpg?type=w800' },
+                { date: '2026-03-18', title: '사교육비 감소? "학원 3,4곳 기본"…쓸 사람 더 썼다', summary: '#지난 16일 밤 찾은 대구 수성구 범어동 학원가. 늦은 시간이지만 거리에는 학생들의 발걸음이 끊이지 않았다. 오후 9시 30분쯤부터 추리닝 바지에 후드집업 또는 교복 차림의 중·고등학생들이 하나둘 거리에 나타나기', source: '한겨레', importance: 'important', url: 'https://n.news.naver.com/mnews/article/088/0001001466?sid=102', imageUrl: 'https://imgnews.pstatic.net/image/088/2026/03/17/0001001466_001_20260317233910230.jpg?type=w800' },
+                { date: '2026-03-18', title: '고교생 30% "긴글 10분 이상 읽기 힘들다"…숏폼 시청은 일상화', summary: '진학사 온라인 설문…응답자 78% "숏폼 의도했던 것보다 오래 시청" 고등학생 10명 중 3명은 긴 글을 10분 이상 읽는 데 어려움을 겪는 것으로 조사됐다. 입시정보업체 진학사는 지난달 2∼11일 전국 고등학생을', source: '연합뉴스', importance: 'important', url: 'https://n.news.naver.com/mnews/article/001/0015965238?sid=102', imageUrl: 'https://imgnews.pstatic.net/image/001/2026/03/18/PYH2025101313320005100_P4_20260318111517506.jpg?type=w800' },
+                { date: '2026-03-18', title: '동아출판사 중2 도덕교과서 인쇄 오류…전량 회수 후 재배포', summary: '대구에서 중학생들에게 배포된 도덕 교과서에서 오류가 발견돼 전량 회수 후 다시 배포하는 일이 생겼다. 17일 대구교육청에 따르면 동아출판사가 지난달 대구 팔공중학교에 배포한 2학년 1학기 도덕 교과서 151권에 학생', source: '뉴스1', importance: 'important', url: 'https://n.news.naver.com/mnews/article/421/0008831778?sid=102', imageUrl: 'https://imgnews.pstatic.net/image/421/2026/03/17/0008831778_001_20260317174518397.jpg?type=w800' },
+                { date: '2026-03-18', title: '전북교육청 \'AI·디지털 선도학교\' 대폭 확대 "에듀테크 교육 강화"', summary: '전북도교육청이 AI 디지털을 기반으로 교육 체계를 혁신하고 강화하겠다는 구상을 내놨다. 도교육청은 올해 총 100개교를 \'AI·디지털 활용 선도학교\'로 선정했다고 17일 밝혔다. 이는 지난해(67개교)보다 33개교나', source: '뉴스1', importance: 'positive', url: 'https://n.news.naver.com/mnews/article/421/0008831388?sid=102', imageUrl: 'https://imgnews.pstatic.net/image/421/2026/03/17/0008831388_001_20260317155212521.jpg?type=w800' },
+                { date: '2026-03-19', title: '두 살때부터 영어 외우느라, 동화책과 멀어지는 아이들', summary: '국공립 교사 90% “영어 유치원 등 조기 사교육이 문해력에 악영향” 서울 서초구에서 다섯 살 딸을 키우는 A씨는 ‘대치동 영어 조기 교육 공식’을 그대로 따랐다. 영어 유치원 입학에 필요한 ‘4세 고시’ 준', source: '조선일보', importance: 'important', url: 'https://n.news.naver.com/mnews/article/023/0003965425?sid=102', imageUrl: 'https://imgnews.pstatic.net/image/023/2026/03/19/0003965425_001_20260319105115281.jpg?type=w800' },
+                { date: '2026-03-19', title: '서울시교육청 "늘어난 폐교, 미래교육 거점으로 전환"', summary: '서울시교육청은 학령인구 감소로 급증하는 폐교를 공교육의 핵심 자산으로 재정의하고 2030년까지 2732억원을 투입해 미래 역량 학습 거점으로 전격 전환한다고 18일 밝혔다. 이 같은 내용이 포함된 \'학교 이전적지·폐', source: '파이낸셜뉴스', importance: 'positive', url: 'https://n.news.naver.com/mnews/article/014/0005493706?sid=102', imageUrl: 'https://imgnews.pstatic.net/image/014/2026/03/18/0005493706_001_20260318182621675.jpg?type=w800' },
+                { date: '2026-03-19', title: '충남도교육청, 2026 유보통합 시범사업 652개 기관 선정', summary: '도내 영유아의 건강한 성장·발달 지원 위한 힘찬 발걸음 지역 여건에 맞는 다양한 유보통합 운영 사례 발굴·확산 충남도교육청은 도내 유치원과 어린이집을 대상으로 \'2026년 유보통합 시범사업\' 운영을 위해 652개 기', source: '충남일보', importance: 'positive', url: 'https://n.news.naver.com/mnews/article/629/0000482624?sid=102', imageUrl: 'https://imgnews.pstatic.net/image/629/2026/03/18/202623971773800764_20260318113608153.jpg?type=w800' },
+                { date: '2026-03-19', title: 'AI, 교실의 일상으로… 경북교육청 2026 종합계획 가동', summary: '경북교육청은 \'2026 AI교육 종합계획\'을 수립해 AI 배움터 구축, 중점학교 운영, 학생 디지털 역량 인증제 도입 등을 통해 학교 현장 전반의 AI 교육 체계를 강화할 계획이다.', source: '한스경제', importance: 'positive', url: 'https://www.hansbiz.co.kr/news/articleView.html?idxno=825256', imageUrl: 'https://cdn.hansbiz.co.kr/news/thumbnail/202603/825256_831098_3513_v150.jpg' },
+                { date: '2026-03-19', title: '고교생 30% "10분 이상 글 읽기 힘들다"… 습관적 숏폼 시청 58%', summary: '고교생 30% “10분 이상 글 읽기 힘들다”… 습관적 숏폼 시청 58%', source: '조선에듀', importance: 'important', url: 'https://edu.chosun.com/site/data/html_dir/2026/03/18/2026031880079.html', imageUrl: 'https://edu.chosun.com/site/data/img_dir/2026/03/18/2026031880078_0.jpg' },
+                { date: '2026-03-19', title: '"무릎에 자녀 앉히고 종이책을 읽어줘라"', summary: '美 언어학자 배런 인터뷰 “인간적 연결이 독서 습관 핵심 디지털 책은 주의력 분산시켜" “최근 영유아들이 숏폼 등 디지털 콘텐츠에 자주 노출되면서 종이책을 읽는 기회가 줄고 있습니다. 아이를 스스로 ‘딥리딩(깊이 읽', source: '조선일보', importance: 'positive', url: 'https://n.news.naver.com/mnews/article/023/0003965409?sid=102', imageUrl: 'https://imgnews.pstatic.net/image/023/2026/03/19/0003965409_001_20260319111611202.jpg?type=w800' },
+            ],
+            '에듀테크 기업 소식': [
+                { date: '2026-03-16', title: '"AI로 중국어 발음 오류∙단어 순서 분석" [주간 에듀테크]', summary: 'IT조선은 3월 9일부터 13일까지 한 주간 에듀테크 업계 주요 소식을 모은 \'주간 에듀테크\' 코너를 소개했다.', source: 'IT조선', importance: 'positive', url: 'https://it.chosun.com/news/articleView.html?idxno=2023092158622', imageUrl: 'https://cdn.it.chosun.com/news/thumbnail/202603/2023092158622_438790_14_v150.jpg' },
+                { date: '2026-03-16', title: '안랩 손잡은 엘리스그룹…"차세대 AI 데이터센터 보안체계 구축"', summary: 'AI(인공지능) 교육·인프라 기업 엘리스그룹이 보안 전문 기업 안랩과 AI 데이터센터 및 차세대 네트워크 보안 분야에서 협력을 위한 업무협약을 체결했다고 15일 밝혔다. 이번 협약은 AI 기술 확산으로 데이터센터와', source: '머니투데이', importance: 'positive', url: 'https://n.news.naver.com/mnews/article/008/0005330047?sid=101', imageUrl: 'https://imgnews.pstatic.net/image/008/2026/03/15/0005330047_001_20260315140014332.jpg?type=w800' },
+                { date: '2026-03-17', title: '[에듀테크+] "수업 준비, AI 조교와 함께"…효율성에 올인', summary: '기술과 교육이 만나는 \'에듀테크\' 분야는 지금도 조용히 교실과 산업의 풍경을 바꾸고 있습니다. <디지털데일리>는 \'에듀테크+\'를 통해 관련 시장·기업·정책·현장을 찾아 국내 에듀테크 업계를 다각도로 들여다 보고 숨은', source: 'MBC', importance: 'positive', url: 'https://n.news.naver.com/mnews/article/138/0002220729?sid=105', imageUrl: 'https://imgnews.pstatic.net/image/138/2026/03/16/0002220729_001_20260316161710938.png?type=w800' },
+                { date: '2026-03-17', title: '[에듀플러스]대교, "학습 격차 뒤에 숨은 \'느린학습자\'…맞춤 교육 필요성 커져"', summary: '대교에듀캠프는 느린학습자를 대상으로 인지·정서·사회성을 통합 지원하는 1대1 맞춤 교육 프로그램 \'마이페이스\'를 운영한다.', source: '전자신문', importance: 'positive', url: 'https://n.news.naver.com/mnews/article/030/0003407983?sid=102', imageUrl: 'https://imgnews.pstatic.net/image/030/2026/03/16/0003407983_001_20260316180309932.jpg?type=w800' },
+                { date: '2026-03-17', title: '메가스터디 러셀, 생기부 관리 프로그램 \'Prime Log\' 운영', summary: '메가스터디교육의 러셀은 수험생의 학습과 학생부 관리, 입시 전략을 통합 지원하는 \'Prime Log\' 프로그램을 전국 7개 지점에서 운영한다.', source: '이데일리', importance: 'positive', url: 'https://n.news.naver.com/mnews/article/018/0006236161?sid=102', imageUrl: 'https://imgnews.pstatic.net/image/018/2026/03/16/0006236161_001_20260316101510158.jpg?type=w800' },
+                { date: '2026-03-18', title: '아이스크림에듀, 특수교육디지털교육협회와 맞춤형 특수교육 모델 구축 맞손', summary: '아이스크림에듀는 특수교육디지털교육협회와 협력해 \'리틀홈런\'을 기반으로 특수교육 대상자를 위한 맞춤형 디지털 학습 모델 구축에 나선다.', source: '뉴데일리', importance: 'positive', url: 'https://n.news.naver.com/mnews/article/092/0002414827?sid=105', imageUrl: 'https://imgnews.pstatic.net/image/092/2026/03/17/0002414827_001_20260317193111033.jpg?type=w800' },
+                { date: '2026-03-18', title: '마인드로직, \'팩트챗\' 47개 대학교 넘어 219개 초중고 생성형 AI 인프라 표준으로 확산', summary: '마인드로직의 생성형 AI 플랫폼 \'팩트챗\'이 대학에 이어 전국 219개 초·중·고등학교로 도입되며 교육 현장으로 빠르게 확산되고 있다.', source: '뉴스1', importance: 'positive', url: 'https://n.news.naver.com/mnews/article/144/0001104037?sid=103', imageUrl: 'https://imgnews.pstatic.net/image/144/2026/03/17/0001104037_001_20260317223217606.jpg?type=w800' },
+                { date: '2026-03-18', title: '프리윌린, AI 교육 인프라 강화 위해 개발직군 채용', summary: '인공지능(AI) 기반 교육 솔루션 기업 프리윌린은 AI 교육 인프라 강화와 서비스 확장을 위해 개발 인력을 대규모로 채용한다고 18일 밝혔다. 이번 채용은 △데이터 엔지니어 △QA 엔지니어 △테크 이노베이션 워킹 그', source: '서울경제', importance: 'positive', url: 'https://n.news.naver.com/mnews/article/011/0004600480?sid=101', imageUrl: 'https://imgnews.pstatic.net/image/011/2026/03/18/0004600480_001_20260318070211118.png?type=w800' },
+                { date: '2026-03-18', title: '아하, 베스트바이·아마존 등 북미 주요 온라인 유통망 전자칠판 입점', summary: '에듀테크 기업 아하(AHA)가 미국 가전 유통업체 베스트바이(Best Buy)를 비롯해 아마존, 월마트 등 북미 주요 온라인 유통망에 전자칠판 제품을 입점했다고 17일 밝혔다. 아하는 지난달 말부터 이달 초까지 아마', source: '동아일보', importance: 'positive', url: 'https://n.news.naver.com/mnews/article/020/0003704675?sid=102', imageUrl: 'https://imgnews.pstatic.net/image/020/2026/03/17/0003704675_001_20260317104218817.png?type=w800' },
+                { date: '2026-03-18', title: '"수업 준비는 지금, 예산 집행은 나중… 테크빌교육 티처몰 \'학교예산 후불제\' 지원"', summary: '테크빌교육의 티처몰은 교사가 물품을 먼저 구매하고 예산 집행 후 결제하는 \'학교예산 후불제\' 서비스를 도입하고 신학기 준비물 기획전을 진행한다.', source: '동아에듀', importance: 'positive', url: 'https://edu.donga.com/news/articleView.html?idxno=104739', imageUrl: 'https://cdn.edu.donga.com/news/photo/202603/104739_168627_4039.jpg' },
+                { date: '2026-03-19', title: '동아출판 두클래스, \'교과서 핏(Fit)\' 초등 사회 콘텐츠 공개…런칭 이벤트 진행', summary: '동아출판의 \'두클래스\'는 초등 사회 수업을 위한 교과서 연계형 신규 콘텐츠를 공개하고 교사 대상 이벤트를 진행한다.', source: '동아에듀', importance: 'positive', url: 'https://edu.donga.com/news/articleView.html?idxno=104828', imageUrl: 'https://cdn.edu.donga.com/news/photo/202603/104828_168717_2353.jpg' },
+            ],
+            '글로벌 교육 동향': [
+                { date: '2026-03-16', title: '"AI 도입이 인지 능력 저하 불러"…美 전문가들 잇단 경고', summary: '서영은 인턴 기자 = 학교 현장에 도입된 디지털 기기와 인공지능(AI)이 오히려 학생들의 인지 능력을 저하시키고 있다는 전문가들의 경고가 잇따르고 있다. 14일(현지시간) 미국 경제 매체 포춘(Fortune)에 따르', source: '뉴시스', importance: 'important', url: 'https://n.news.naver.com/mnews/article/003/0013823122?sid=104', imageUrl: 'https://imgnews.pstatic.net/image/003/2026/03/15/NISI20251202_0000831030_web_20251202140354_20260315190017796.jpg?type=w800' },
+            ],
+            'AI 기술 및 산업 동향': [
+                { date: '2026-03-16', title: '정부, 앤트로픽 협력 추진...챗GPT 독주 흔들리나', summary: '정부가 앤트로픽과 업무협력을 추진하면서 오픈AI와의 단독 협력구도에 변화가 예상된다. 15일 업계에 따르면 과학기술정보통신부는 클로드 개발사 앤트로픽과 업무협력(MOU) 등 공식 협력 관계를 맺는 방안을 추진 중이다', source: '파이낸셜뉴스', importance: 'important', url: 'https://n.news.naver.com/mnews/article/014/0005491520?sid=105', imageUrl: 'https://imgnews.pstatic.net/image/014/2026/03/15/0005491520_001_20260315142414414.jpg?type=w800' },
+                { date: '2026-03-16', title: '구글·삼성, \'제미나이\' 앱 자동화 기능 공개…"AI가 사람 대신 스마트폰 조작"', summary: '구글과 삼성은 AI \'제미나이\'를 기반으로 스마트폰에서 AI가 직접 앱을 실행하고 작업을 처리하는 자동화 기능을 갤럭시 S26 울트라에 베타 형태로 도입했다.', source: 'AI타임스', importance: 'important', url: 'https://www.aitimes.com/news/articleView.html?idxno=207853', imageUrl: 'https://cdn.aitimes.com/news/photo/202603/207853_210007_1418.png' },
+                { date: '2026-03-16', title: '\'소리만 요란한 빈수레\' 메타, 새 AI 모델 출시 연기하고 직원 또 감축', summary: '메타가 대규모 AI 투자와 인재 영입에도 불구하고 자체 AI 모델 성능이 경쟁사에 뒤처지며 신작 \'아보카도\' 출시를 연기하는 등 성과 부진 논란이 제기됐다.', source: '조선일보', importance: 'important', url: 'https://n.news.naver.com/mnews/article/023/0003964745?sid=105', imageUrl: 'https://imgnews.pstatic.net/image/023/2026/03/16/0003964745_001_20260316072215264.jpg?type=w800' },
+                { date: '2026-03-16', title: 'AI가 100% 코딩하는 시대… 사람 역할은 AI 능률 높이는 \'하네스 엔지니어링\'', summary: 'AI가 코드 작성 전 과정을 수행하는 시대가 도래하면서 사람의 역할은 AI의 업무 환경과 통제 시스템을 설계하는 \'하네스 엔지니어링\'으로 이동하고 있다는 분석이 나온다.', source: '조선일보', importance: 'important', url: 'https://n.news.naver.com/mnews/article/023/0003964743?sid=105', imageUrl: 'https://imgnews.pstatic.net/image/023/2026/03/16/0003964743_001_20260316152911355.jpg?type=w800' },
+                { date: '2026-03-16', title: '中 AI의 민낯...저작권 침해 논란에 시댄스 2.0 출시 중단', summary: '바이트댄스는 할리우드 스튜디오들의 저작권 침해 문제 제기로 영상 생성 AI 모델 \'시댄스 2.0\'의 글로벌 출시를 잠정 중단했다.', source: '이데일리', importance: 'important', url: 'https://n.news.naver.com/mnews/article/018/0006235856?sid=104', imageUrl: 'https://imgnews.pstatic.net/image/018/2026/03/15/0006235856_001_20260315221311257.jpg?type=w800' },
+                { date: '2026-03-17', title: '대학원에 모인 선임·책임들… "회사 AI 고민 풀러왔죠"', summary: 'LG는 현업 문제 해결을 목표로 계열사 직원들이 연구와 학위를 병행하는 국내 최초의 사내 대학원 \'LG AI 대학원\'을 개원했다.', source: '조선일보', importance: 'positive', url: 'https://n.news.naver.com/mnews/article/023/0003964937?sid=102', imageUrl: 'https://imgnews.pstatic.net/image/023/2026/03/17/0003964937_001_20260317115108232.jpg?type=w800' },
+                { date: '2026-03-17', title: '2030년까지 4개 산업서 10만명 AI 대체 전망', summary: '2030년까지 국내 주요 산업에서 약 10만명의 일자리가 인공지능(AI)으로 대체될 수 있다는 국책 연구기관의 분석이 나왔다. AI와 디지털 전환 확산으로 일부 업무가 자동화할 것이란 전망이다. 무인 매장과 로봇 자', source: '국민일보', importance: 'important', url: 'https://n.news.naver.com/mnews/article/005/0001837443?sid=102', imageUrl: 'https://imgnews.pstatic.net/image/005/2026/03/16/2026031619040594592_1773655445_1773650716_20260317172914355.jpg?type=w800' },
+                { date: '2026-03-17', title: '코딩은 AI 몫, 설계는 인간… 개발자의 정의가 바뀐다', summary: '“요즘 친구들 만나면 가장 많이 하는 얘기가 ‘우리는 언제 대체될까’예요. 농담처럼 ‘한국 가서 카페 차려야 하나’라고 말하지만 웃을 일이 아닙니다. 기술 발전 속도가 너무 빠르거든요.” 미국 실리콘밸리에서 일하는', source: '국민일보', importance: 'important', url: 'https://n.news.naver.com/mnews/article/005/0001837504?sid=102', imageUrl: 'https://imgnews.pstatic.net/image/005/2026/03/17/2026031622130695173_1773666786_1773652589_20260317173013678.jpg?type=w800' },
+                { date: '2026-03-17', title: '알트먼 "AI로 \'거대한 돌파구\'에 집중해야...AGI는 인류 도약의 전 단계일 뿐"', summary: '샘 알트먼 오픈AI CEO가 대학 후배들에게 AI를 활용해 기존에는 불가능했던 일에 도전하라고 충고했다. AI를 단순히 기존 소프트웨어에 덧붙이는 방식이 아니라,', source: 'AI타임스', importance: 'important', url: 'https://www.aitimes.com/news/articleView.html?idxno=207925', imageUrl: 'https://cdn.aitimes.com/news/photo/202603/207925_210084_437.jpg' },
+                { date: '2026-03-17', title: '신세계 국내 최대 AI 데이터센터 설립 추진… 리플렉션 AI와 협업', summary: '美정부 AI 수출 1호 사례 신세계그룹이 미국 인공지능(AI) 기업 리플렉션 AI와 함께 한국에 국내 최대 규모의 AI 데이터 센터 건립을 추진한다고 17일 밝혔다. 리플렉션 AI는 구글 딥마인드 핵심 개발자였던 라', source: '경향신문', importance: 'positive', url: 'https://n.news.naver.com/mnews/article/366/0001148937?sid=101', imageUrl: 'https://imgnews.pstatic.net/image/366/2026/03/17/0001148937_001_20260317040410059.jpg?type=w800' },
+                { date: '2026-03-17', title: 'AI 직원 \'젠스파크 클로\' 출시..."클라우드 컴퓨터에서 안전하게 구동"', summary: 'AI 스타트업 젠스파크는 이메일 관리, 일정 조정, 조사·보고 등 실제 업무를 수행하는 AI 에이전트 \'젠스파크 클로\'를 공개했다.', source: 'AI타임스', importance: 'positive', url: 'https://www.aitimes.com/news/articleView.html?idxno=207939', imageUrl: 'https://cdn.aitimes.com/news/photo/202603/207939_210103_123.png' },
+                { date: '2026-03-18', title: '[위클리AI] 앤스로픽, 클로드 파트너 네트워크 출범···구글 지도에도 제미나이 탑재', summary: '[IT동아 박귀임 기자] 인공지능(AI)이 세상을 바꾸고 있습니다. AI는 이제 우리 일상에서 떼려야 뗄 수 없는 핵심적인 요소입니다. 한 주간 세계를 들썩이게 만든 글로벌 빅테크', source: 'IT동아', importance: 'positive', url: 'https://it.donga.com/108568/', imageUrl: 'https://it.donga.com/media/__sized__/images/2026/3/17/575c2711e46849f7-thumbnail-1920x1080-70.jpg' },
+                { date: '2026-03-18', title: '엔비디아, 차세대 CPU·추론용 LPU·GPU \'베라 루빈\' 공개', summary: '엔비디아가 AI 칩 시장의 폭발적인 성장에 힘입어 2027년까지 최소 1조 달러 규모의 매출 기회를 창출할 수 있을 것으로 전망했다. 동시에 새로운 CPU와 추론', source: 'AI타임스', importance: 'important', url: 'https://www.aitimes.com/news/articleView.html?idxno=207968', imageUrl: 'https://cdn.aitimes.com/news/photo/202603/207968_210147_3354.jpg' },
+                { date: '2026-03-19', title: '영상 생성 AI, 창작인가 복제인가… 산업 불확실성 커진다', summary: '영상 생성 인공지능(AI)이 저작권 논쟁의 새로운 전선으로 떠오르고 있다. 중국 빅테크 바이트댄스가 기존 영상 콘텐츠를 학습한 AI 결과물이 ‘사실상 복제’에 해당할 수 있다는 지적이 나오자 영상 생성 AI 모델의 글로벌 출시를 보류했다. 법적 기준이 마련되지 않은 상황에서 AI 산업', source: 'IT조선', importance: 'important', url: 'https://it.chosun.com/news/articleView.html?idxno=2023092158843', imageUrl: 'https://cdn.it.chosun.com/news/thumbnail/202603/2023092158843_439043_5849_v150.jpg' },
+                { date: '2026-03-19', title: '\'버튜버\' 실시간 감정표현에 상호작용까지…네이버, R&D로 \'72조 시장\' 도전장', summary: '실시간 대화, 감정 분석이 통합된 AI 3D 버추얼 스트리머 기술 개발 버추얼 공연 위한 프리프로덕션 지원 시스템까지 감정 실시간 반영한 캐릭터로 몰입감 키워 2032년 72조 시장 선점 네이버가 인공지능(AI)을', source: '전자신문', importance: 'positive', url: 'https://n.news.naver.com/mnews/article/030/0003408895?sid=101', imageUrl: 'https://imgnews.pstatic.net/image/030/2026/03/18/0003408895_001_20260318194254655.png?type=w800' },
+                { date: '2026-03-19', title: '젠슨 황의 선언 "네모클로는 \'AI 직원\'...기업 필수 소프트웨어될 것"', summary: '엔비디아는 GTC에서 \'네모클로\'를 보안 샌드박스와 정책 통제 환경까지 결합한 기업용 AI 에이전트 플랫폼으로 제시하며 AI 에이전트의 기업 도입을 본격화하려는 방향을 드러냈다.', source: 'AI타임스', importance: 'important', url: 'https://www.aitimes.com/news/articleView.html?idxno=208028', imageUrl: 'https://cdn.aitimes.com/news/photo/202603/208028_210217_1226.jpeg' },
+                { date: '2026-03-19', title: 'AI 에이전트를 위한 전용 시스템 \'어댑티브 컴퓨터\' 출시', summary: '어댑티브가 AI가 소프트웨어를 직접 조작해 반복 업무를 자율 수행하는 \'어댑티브 컴퓨터\'를 공개했으며, 작업 방식을 학습·기억하는 인코딩된 메모리를 통해 보고서 작성 등 후속 업무까지 자동화한다.', source: 'AI타임스', importance: 'positive', url: 'https://www.aitimes.com/news/articleView.html?idxno=208059', imageUrl: 'https://cdn.aitimes.com/news/photo/202603/208059_210257_2248.png' },
+                { date: '2026-03-19', title: '오픈AI, 소형 모델 \'GPT-5.4 미니·나노\' 출시..."전 세대 중형급 성능"', summary: '오픈AI가 고성능 소형 AI 모델 2종을 전격 공개했다. 실제 서비스 환경에서 요구되는 ‘빠른 속도, 높은 정확도, 낮은 비용’이라는 세가지 과제를 동시에 해결하', source: 'AI타임스', importance: 'positive', url: 'https://www.aitimes.com/news/articleView.html?idxno=208018', imageUrl: 'https://cdn.aitimes.com/news/photo/202603/208018_210205_5750.jpeg' },
+                { date: '2026-03-19', title: '메타, 메타버스 사업 접는다', summary: '메타가 메타버스(3D 가상 공간) 앱인 ‘호라이즌 월즈’ 지원을 중단하기로 했다. 페이스북에서 메타로 사명까지 바꿔가며 메타버스 사업에 ‘올인’해 온 메타가 관련 사업에서 완전히 철수하는 것이다. 블룸버그통신은 17', source: '조선일보', importance: 'important', url: 'https://n.news.naver.com/mnews/article/023/0003965298?sid=105', imageUrl: 'https://imgnews.pstatic.net/image/023/2026/03/18/0003965298_001_20260318185711423.JPG?type=w800' },
+            ]
+        };
+
+        // ── Supabase 초기화 ──
+        const _supa = window.supabase.createClient(
+            'https://kmrhczuqwrtfpvrmskfn.supabase.co',
+            'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImttcmhjenVxd3J0ZnB2cm1za2ZuIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzM5NjAyNDcsImV4cCI6MjA4OTUzNjI0N30.Em_1IvoNDZ1-GLpVEu8kM3zNyxgmSlGf3S384AQJ-6Y'
+        );
+
+        async function mergeSupabaseNews() {
+            try {
+                const { data } = await _supa.from('news').select('*').order('date', { ascending: false });
+                if (!data || data.length === 0) return;
+                data.forEach(item => {
+                    const cat = item.category;
+                    if (!newsDataByCategory[cat]) newsDataByCategory[cat] = [];
+                    if (!newsDataByCategory[cat].find(n => n.url === item.url)) {
+                        newsDataByCategory[cat].push({
+                            date: item.date,
+                            title: item.title,
+                            summary: item.summary || '',
+                            source: item.source || '',
+                            importance: item.importance || 'important',
+                            url: item.url,
+                            imageUrl: item.image_url || ''
+                        });
+                        newsDataByCategory[cat].sort((a, b) => b.date.localeCompare(a.date));
+                    }
+                });
+            } catch(e) { console.warn('Supabase 뉴스 로드 실패:', e); }
+        }
+
+        function trackVisitor() {
+            try {
+                if (sessionStorage.getItem('icm_visited')) return;
+                const sid = Math.random().toString(36).slice(2);
+                sessionStorage.setItem('icm_visited', sid);
+                _supa.from('visitors').insert({ session_id: sid }).then(() => {});
+            } catch(e) {}
+        }
+
+        function trackClickSupabase(url) {
+            try { _supa.from('clicks').insert({ url }).then(() => {}); } catch(e) {}
+        }
+
+        let _searchTrackTimer = null;
+        function trackSearchSupabase(term) {
+            clearTimeout(_searchTrackTimer);
+            _searchTrackTimer = setTimeout(() => {
+                try { _supa.from('searches').insert({ term }).then(() => {}); } catch(e) {}
+            }, 1500);
+        }
+
+        // ── 상태 ──
+        let currentMonth = new Date(2026, 2);
+        let dateRange = { start: null, end: null };
+        let allNews = [];
+        let selectedCategories = new Set(Object.keys(newsDataByCategory));
+        let isDragging = false;
+        let readArticles = new Set(JSON.parse(localStorage.getItem('icm_read') || '[]'));
+        let bookmarks = new Set(JSON.parse(localStorage.getItem('icm_bookmarks') || '[]'));
+        let showBookmarksOnly = false;
+        let dragStartDate = null;
+        let dragCurrentDate = null;
+
+        // ── 링크 복사 ──
+        let toastTimer = null;
+        function showToast(msg) {
+            const toast = document.getElementById('toast');
+            toast.textContent = msg;
+            toast.classList.add('show');
+            clearTimeout(toastTimer);
+            toastTimer = setTimeout(() => toast.classList.remove('show'), 2000);
+        }
+
+        function copyLink(url, e) {
+            e.preventDefault();
+            e.stopPropagation();
+            navigator.clipboard.writeText(url).then(() => {
+                showToast('🔗 링크가 복사됐어요!');
+            });
+        }
+
+        // ── 읽음 표시 ──
+        function markRead(url) {
+            readArticles.add(url);
+            localStorage.setItem('icm_read', JSON.stringify([...readArticles]));
+            // 카드 즉시 업데이트
+            document.querySelectorAll(`.news-card[data-url="${CSS.escape(url)}"]`).forEach(card => {
+                card.classList.add('read');
+                if (!card.querySelector('.read-badge')) {
+                    const badge = document.createElement('span');
+                    badge.className = 'read-badge';
+                    badge.textContent = '✓ 읽음';
+                    card.querySelector('.news-image').prepend(badge);
+                }
+            });
+        }
+
+        // ── 북마크 ──
+        function toggleBookmark(url, e) {
+            e.preventDefault();
+            e.stopPropagation();
+            if (bookmarks.has(url)) bookmarks.delete(url);
+            else bookmarks.add(url);
+            localStorage.setItem('icm_bookmarks', JSON.stringify([...bookmarks]));
+            const btn = e.currentTarget;
+            btn.classList.toggle('active', bookmarks.has(url));
+            btn.textContent = bookmarks.has(url) ? '★' : '☆';
+            if (showBookmarksOnly) renderNews();
+        }
+
+        function toggleBookmarkFilter() {
+            showBookmarksOnly = !showBookmarksOnly;
+            const btn = document.getElementById('bookmarkFilterBtn');
+            btn.classList.toggle('active', showBookmarksOnly);
+            btn.textContent = showBookmarksOnly ? '★ 북마크 모아보기' : '☆ 북마크 모아보기';
+            applyFilters();
+        }
+
+        // ── 클릭 추적 & 인기 게시물 ──
+        function trackClick(url) {
+            try {
+                const clicks = JSON.parse(localStorage.getItem('icm_clicks') || '[]');
+                clicks.push({ url, t: Date.now() });
+                const cutoff = Date.now() - 30 * 86400000;
+                localStorage.setItem('icm_clicks', JSON.stringify(clicks.filter(c => c.t > cutoff)));
+            } catch(e) {}
+            trackClickSupabase(url);
+            renderPopular();
+        }
+
+        function renderPopular() {
+            const container = document.getElementById('popularList');
+            if (!container) return;
+            try {
+                const clicks = JSON.parse(localStorage.getItem('icm_clicks') || '[]');
+                const cutoff = Date.now() - 7 * 86400000;
+                const freq = {};
+                clicks.filter(c => c.t > cutoff).forEach(c => { freq[c.url] = (freq[c.url] || 0) + 1; });
+                const top5 = Object.entries(freq)
+                    .sort((a, b) => b[1] - a[1])
+                    .slice(0, 5)
+                    .map(([url]) => allNews.find(n => n.url === url))
+                    .filter(Boolean);
+                if (!top5.length) {
+                    container.innerHTML = '<p class="popular-empty">기사를 클릭하면 여기에 쌓여요 :)</p>';
+                    return;
+                }
+                container.innerHTML = top5.map((item, i) => `
+                    <a href="${item.url}" target="_blank" class="popular-item" onclick="trackClick('${item.url.replace(/'/g,"\\'")}')">
+                        <span class="popular-rank rank-${i+1}">${i+1}</span>
+                        <span class="popular-item-title ${i < 3 ? 'top' : 'rest'}">${item.title}</span>
+                    </a>`).join('');
+            } catch(e) {
+                container.innerHTML = '';
+            }
+        }
+
+        // ── 날짜 포맷 유틸 ──
+        const DAYS_KO = ['일', '월', '화', '수', '목', '금', '토'];
+
+        function formatDate(dateStr) {
+            if (!dateStr) return '';
+            const [y, m, d] = dateStr.split('-').map(Number);
+            const dow = DAYS_KO[new Date(y, m - 1, d).getDay()];
+            return `${y}년 ${m}월 ${d}일(${dow})`;
+        }
+
+        // ── 초기화 ──
+        async function init() {
+            await mergeSupabaseNews();
+            trackVisitor();
+
+            allNews = [];
+            Object.values(newsDataByCategory).forEach(cat => allNews.push(...cat));
+            Object.keys(newsDataByCategory).forEach(cat => selectedCategories.add(cat));
+
+            // 기본값: 오늘 날짜 선택
+            const today = new Date();
+            const todayStr = `${today.getFullYear()}-${String(today.getMonth()+1).padStart(2,'0')}-${String(today.getDate()).padStart(2,'0')}`;
+            dateRange = { start: todayStr, end: todayStr };
+            currentMonth = new Date(today.getFullYear(), today.getMonth());
+
+            renderCategoryFilters();
+            renderPopular();
+            updateStats();
+            renderCalendar();
+            renderNews();
+            updateFeedTitle();
+        }
+
+        function renderCategoryFilters() {
+            const container = document.getElementById('categoryFilters');
+            if (!container) return;
+            Object.keys(newsDataByCategory).forEach(cat => {
+                const item = document.createElement('div');
+                item.className = 'category-filter-item';
+                const safeId = 'cat_' + cat.replace(/\s+/g, '_');
+                item.innerHTML = `
+                    <input type="checkbox" id="${safeId}" checked onchange="toggleCategory('${cat}')">
+                    <label for="${safeId}">${cat}</label>`;
+                container.appendChild(item);
+            });
+        }
+
+        function toggleCategory(catName) {
+            if (selectedCategories.has(catName)) selectedCategories.delete(catName);
+            else selectedCategories.add(catName);
+            applyFilters();
+        }
+
+        function applyFilters() {
+            const q = (document.getElementById('searchInput')?.value || '').trim();
+            if (q.length > 1) trackSearchSupabase(q);
+            renderNews();
+            updateStats();
+            updateFeedTitle();
+        }
+
+        // ── 달력 ──
+        function renderCalendar() {
+            const year = currentMonth.getFullYear();
+            const month = currentMonth.getMonth();
+            document.getElementById('monthYear').textContent = `${year}년 ${month + 1}월`;
+
+            const firstDay = new Date(year, month, 1).getDay();
+            const daysInMonth = new Date(year, month + 1, 0).getDate();
+            const grid = document.getElementById('calendarGrid');
+            grid.innerHTML = '';
+
+            ['일','월','화','수','목','금','토'].forEach(n => {
+                const el = document.createElement('div');
+                el.className = 'day-header';
+                el.textContent = n;
+                grid.appendChild(el);
+            });
+
+            for (let i = 0; i < firstDay; i++) {
+                const el = document.createElement('div');
+                el.className = 'day other-month';
+                grid.appendChild(el);
+            }
+
+            const today = new Date();
+            const dateMap = {};
+            allNews.forEach(item => { dateMap[item.date] = (dateMap[item.date] || 0) + 1; });
+
+            // 드래그 중이면 미리보기 범위, 아니면 확정 범위
+            let previewStart, previewEnd;
+            if (isDragging && dragStartDate && dragCurrentDate) {
+                previewStart = dragStartDate <= dragCurrentDate ? dragStartDate : dragCurrentDate;
+                previewEnd   = dragStartDate <= dragCurrentDate ? dragCurrentDate : dragStartDate;
+            } else if (dateRange.start && dateRange.end) {
+                previewStart = dateRange.start <= dateRange.end ? dateRange.start : dateRange.end;
+                previewEnd   = dateRange.start <= dateRange.end ? dateRange.end   : dateRange.start;
+            }
+
+            for (let d = 1; d <= daysInMonth; d++) {
+                const el = document.createElement('div');
+                el.className = 'day';
+                el.textContent = d;
+                const dateStr = `${year}-${String(month+1).padStart(2,'0')}-${String(d).padStart(2,'0')}`;
+                el.dataset.date = dateStr;
+
+                if (today.getFullYear()===year && today.getMonth()===month && today.getDate()===d) el.classList.add('today');
+                if (dateMap[dateStr]) el.classList.add('has-news');
+
+                if (previewStart && previewEnd) {
+                    if (dateStr === previewStart) el.classList.add('range-start');
+                    if (dateStr === previewEnd)   el.classList.add('range-end');
+                    if (dateStr > previewStart && dateStr < previewEnd) el.classList.add('in-range');
+                }
+
+                el.addEventListener('mousedown', (e) => {
+                    if (el.classList.contains('other-month')) return;
+                    e.preventDefault();
+                    isDragging = true;
+                    dragStartDate = dateStr;
+                    dragCurrentDate = dateStr;
+                    renderCalendar();
+                });
+
+                el.addEventListener('mouseover', () => {
+                    if (!isDragging) return;
+                    dragCurrentDate = dateStr;
+                    renderCalendar();
+                });
+
+                grid.appendChild(el);
+            }
+        }
+
+        document.addEventListener('mouseup', () => {
+            if (!isDragging) return;
+            isDragging = false;
+            if (dragStartDate === dragCurrentDate) {
+                // 단일 클릭: 항상 해당 날짜 선택 유지
+                dateRange = { start: dragStartDate, end: dragStartDate };
+            } else {
+                // 드래그: 범위 확정
+                const s = dragStartDate <= dragCurrentDate ? dragStartDate : dragCurrentDate;
+                const e = dragStartDate <= dragCurrentDate ? dragCurrentDate : dragStartDate;
+                dateRange = { start: s, end: e };
+            }
+            dragStartDate = null;
+            dragCurrentDate = null;
+            renderCalendar();
+            applyFilters();
+        });
+
+        function showToday() {
+            const today = new Date();
+            const todayStr = `${today.getFullYear()}-${String(today.getMonth()+1).padStart(2,'0')}-${String(today.getDate()).padStart(2,'0')}`;
+            dateRange = { start: todayStr, end: todayStr };
+            currentMonth = new Date(today.getFullYear(), today.getMonth());
+            renderCalendar();
+            applyFilters();
+        }
+
+        function prevMonth() {
+            currentMonth.setMonth(currentMonth.getMonth() - 1);
+            renderCalendar();
+        }
+
+        function nextMonth() {
+            currentMonth.setMonth(currentMonth.getMonth() + 1);
+            renderCalendar();
+        }
+
+        // ── 뉴스 필터링 ──
+        function getFilteredCatData() {
+            const q = (document.getElementById('searchInput')?.value || '').trim().toLowerCase();
+            let rangeStart = null, rangeEnd = null;
+            if (dateRange.start && dateRange.end) {
+                rangeStart = dateRange.start <= dateRange.end ? dateRange.start : dateRange.end;
+                rangeEnd   = dateRange.start <= dateRange.end ? dateRange.end   : dateRange.start;
+            }
+            return Object.entries(newsDataByCategory)
+                .filter(([cat]) => selectedCategories.has(cat))
+                .map(([cat, list]) => {
+                    let filtered = list;
+                    if (rangeStart) filtered = filtered.filter(i => i.date >= rangeStart && i.date <= rangeEnd);
+                    if (q) filtered = filtered.filter(i =>
+                        i.title.toLowerCase().includes(q) ||
+                        i.summary.toLowerCase().includes(q) ||
+                        i.source.toLowerCase().includes(q));
+                    if (showBookmarksOnly) filtered = filtered.filter(i => bookmarks.has(i.url));
+                    return { cat, filtered };
+                })
+                .filter(({ filtered }) => filtered.length > 0);
+        }
+
+        function renderNews() {
+            const container = document.getElementById('categoriesContainer');
+            container.innerHTML = '';
+
+            getFilteredCatData().forEach(({ cat, filtered }, idx) => {
+                const section = document.createElement('section');
+                section.className = 'category-section';
+                section.style.animationDelay = `${0.05 + idx * 0.07}s`;
+                section.innerHTML = `
+                    <div class="category-header">
+                        <h2 class="category-title">#${cat}</h2>
+                        <span class="category-count">${filtered.length}개</span>
+                    </div>
+                    <div class="news-grid">${filtered.map(createNewsCard).join('')}</div>
+                `;
+                container.appendChild(section);
+            });
+
+            if (!container.innerHTML) {
+                container.innerHTML = `
+                    <div class="empty-state">
+                        <div class="empty-state-icon">📭</div>
+                        <div class="empty-state-text">표시할 뉴스가 없습니다</div>
+                    </div>`;
+            }
+
+            observeThumbnails();
+        }
+
+        // ── 썸네일 캐시 (localStorage) ──
+        const thumbCache = (() => {
+            try { return JSON.parse(localStorage.getItem('icm_thumbCache') || '{}'); }
+            catch(e) { return {}; }
+        })();
+
+        function saveCache() {
+            try { localStorage.setItem('icm_thumbCache', JSON.stringify(thumbCache)); } catch(e) {}
+        }
+
+        const PROXIES = [
+            url => `https://corsproxy.io/?${encodeURIComponent(url)}`,
+            url => `https://api.allorigins.win/raw?url=${encodeURIComponent(url)}`,
+            url => `https://api.codetabs.com/v1/proxy?quest=${encodeURIComponent(url)}`,
+        ];
+
+        function extractOgImage(html) {
+            const patterns = [
+                /property=["']og:image["'][^>]*content=["']([^"']+)["']/i,
+                /content=["']([^"']+)["'][^>]*property=["']og:image["']/i,
+                /og:image.*?content=["']([^"']+)["']/i,
+            ];
+            for (const p of patterns) {
+                const m = html.match(p);
+                if (m && m[1].startsWith('http')) return m[1];
+            }
+            return '';
+        }
+
+        async function loadThumbnail(imgDiv, articleUrl) {
+            if (thumbCache[articleUrl] !== undefined) {
+                if (thumbCache[articleUrl]) applyThumbnail(imgDiv, thumbCache[articleUrl]);
+                return;
+            }
+            for (const makeProxy of PROXIES) {
+                try {
+                    const res = await fetch(makeProxy(articleUrl), { signal: AbortSignal.timeout(7000) });
+                    if (!res.ok) continue;
+                    const html = await res.text();
+                    const src = extractOgImage(html);
+                    thumbCache[articleUrl] = src;
+                    saveCache();
+                    if (src) applyThumbnail(imgDiv, src);
+                    return;
+                } catch(e) { continue; }
+            }
+            thumbCache[articleUrl] = '';
+            saveCache();
+        }
+
+        function applyThumbnail(imgDiv, src) {
+            const fallback = imgDiv.querySelector('.news-image-fallback');
+            const img = document.createElement('img');
+            img.src = src;
+            img.alt = '';
+            img.style.cssText = 'width:100%;height:100%;object-fit:cover;position:absolute;inset:0;';
+            img.onload  = () => { if (fallback) fallback.style.display = 'none'; };
+            img.onerror = () => img.remove();
+            imgDiv.insertBefore(img, fallback);
+        }
+
+        function observeThumbnails() {
+            const obs = new IntersectionObserver((entries) => {
+                entries.forEach(entry => {
+                    if (!entry.isIntersecting) return;
+                    const el = entry.target;
+                    obs.unobserve(el);
+                    loadThumbnail(el, el.dataset.url);
+                });
+            }, { rootMargin: '300px' });
+            document.querySelectorAll('.news-image[data-url]').forEach(el => obs.observe(el));
+        }
+
+        function createNewsCard(item) {
+            const safeUrl = item.url.replace(/'/g, "\\'");
+            const isRead = readArticles.has(item.url);
+            const isBookmarked = bookmarks.has(item.url);
+            return `
+                <a href="${item.url}" target="_blank" class="news-card-link" onclick="trackClick('${safeUrl}'); markRead('${safeUrl}')">
+                    <article class="news-card${isRead ? ' read' : ''}" data-url="${item.url}">
+                        <div class="news-image" data-url="${item.url}" style="position:relative;">
+                            ${isRead ? '<span class="read-badge">✓ 읽음</span>' : ''}
+                            <button class="share-btn" onclick="copyLink('${safeUrl}', event)" title="링크 복사">
+                                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"/><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"/></svg>
+                            </button>
+                            <button class="bookmark-btn${isBookmarked ? ' active' : ''}"
+                                onclick="toggleBookmark('${safeUrl}', event)"
+                                title="북마크">${isBookmarked ? '★' : '☆'}</button>
+                            ${item.imageUrl ? `<img src="${item.imageUrl}" alt="" style="width:100%;height:100%;object-fit:cover;position:absolute;inset:0;" onerror="this.remove()">` : ''}
+                            <div class="news-image-fallback" style="${item.imageUrl ? 'display:none' : ''}">
+                                <div class="fallback-bar"></div>
+                                <div class="fallback-text">NEWS</div>
+                                <div class="fallback-sub">아이스크림미디어</div>
+                            </div>
+                        </div>
+                        <div class="news-content">
+                            <div class="news-meta">
+                                <span class="news-date">${formatDate(item.date)}</span>
+                            </div>
+                            <h3 class="news-title">${item.title}</h3>
+                            <p class="news-summary">${item.summary}</p>
+                            <div class="news-footer">
+                                <span class="news-source">${item.source}</span>
+                            </div>
+                        </div>
+                    </article>
+                </a>`;
+        }
+
+        function updateStats() {
+            const today = new Date();
+            const todayStr = today.toISOString().slice(0, 10);
+            // 이번주 월요일 구하기
+            const day = today.getDay(); // 0=일,1=월,...
+            const diff = (day === 0 ? -6 : 1 - day);
+            const monday = new Date(today);
+            monday.setDate(today.getDate() + diff);
+            monday.setHours(0, 0, 0, 0);
+
+            let weekCount = 0, todayCount = 0;
+            allNews.forEach(item => {
+                if (!item.date) return;
+                const d = new Date(item.date);
+                if (item.date === todayStr) todayCount++;
+                if (d >= monday) weekCount++;
+            });
+            document.getElementById('weekNews').textContent = weekCount;
+            document.getElementById('todayNews').textContent = todayCount;
+        }
+
+        function updateFeedTitle() {
+            let rangeStart = null, rangeEnd = null;
+            if (dateRange.start && dateRange.end) {
+                rangeStart = dateRange.start <= dateRange.end ? dateRange.start : dateRange.end;
+                rangeEnd   = dateRange.start <= dateRange.end ? dateRange.end   : dateRange.start;
+            }
+            const count = getFilteredCatData().reduce((s, { filtered }) => s + filtered.length, 0);
+
+            if (rangeStart) {
+                document.getElementById('feedTitle').textContent =
+                    rangeStart === rangeEnd
+                        ? formatDate(rangeStart)
+                        : `${formatDate(rangeStart)} ~ ${formatDate(rangeEnd)}`;
+            } else {
+                document.getElementById('feedTitle').textContent = '모든 뉴스';
+            }
+            document.getElementById('feedSubtitle').textContent = `총 ${count}개의 뉴스`;
+        }
+
+        document.addEventListener('DOMContentLoaded', init);
+    </script>
+    <div class="toast" id="toast"></div>
+</body>
+</html>
