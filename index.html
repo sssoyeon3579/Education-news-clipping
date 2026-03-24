@@ -485,9 +485,14 @@
 
         .category-header {
             display: flex;
-            align-items: baseline;
+            align-items: center;
             gap: 10px;
             margin-bottom: 20px;
+        }
+        .sort-btn-group {
+            margin-left: auto;
+            display: flex;
+            gap: 2px;
         }
 
         /* 정렬 버튼 바 */
@@ -812,10 +817,6 @@
                         </div>
                     </div>
                 </div>
-                <div class="sort-bar" id="sortBar">
-                    <button class="sort-btn active" id="sortDesc" onclick="setSortOrder('desc')">· 최신순</button>
-                    <button class="sort-btn" id="sortAsc" onclick="setSortOrder('asc')">· 오래된순</button>
-                </div>
                 <div id="categoriesContainer"></div>
             </div>
 
@@ -1022,8 +1023,6 @@
 
         function setSortOrder(order) {
             sortOrder = order;
-            document.getElementById('sortDesc').classList.toggle('active', order === 'desc');
-            document.getElementById('sortAsc').classList.toggle('active', order === 'asc');
             renderNews();
         }
 
@@ -1288,16 +1287,21 @@
             container.innerHTML = '';
 
             const catData = getFilteredCatData();
-            document.getElementById('sortBar').classList.toggle('visible', catData.length > 0);
 
             catData.forEach(({ cat, filtered }, idx) => {
                 const section = document.createElement('section');
                 section.className = 'category-section';
                 section.style.animationDelay = `${0.05 + idx * 0.07}s`;
+                const sortBtns = idx === 0 ? `
+                    <div class="sort-btn-group">
+                        <button class="sort-btn ${sortOrder === 'desc' ? 'active' : ''}" onclick="setSortOrder('desc')">· 최신순</button>
+                        <button class="sort-btn ${sortOrder === 'asc' ? 'active' : ''}" onclick="setSortOrder('asc')">· 오래된순</button>
+                    </div>` : '';
                 section.innerHTML = `
                     <div class="category-header">
                         <h2 class="category-title">#${cat}</h2>
                         <span class="category-count">${filtered.length}개</span>
+                        ${sortBtns}
                     </div>
                     <div class="news-grid">${filtered.map(createNewsCard).join('')}</div>
                 `;
