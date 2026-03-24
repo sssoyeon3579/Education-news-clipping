@@ -1292,7 +1292,8 @@
                 const section = document.createElement('section');
                 section.className = 'category-section';
                 section.style.animationDelay = `${0.05 + idx * 0.07}s`;
-                const sortBtns = idx === 0 ? `
+                const isMultiDay = dateRange.start && dateRange.end && dateRange.start !== dateRange.end;
+                const sortBtns = (idx === 0 && isMultiDay) ? `
                     <div class="sort-btn-group">
                         <button class="sort-btn ${sortOrder === 'desc' ? 'active' : ''}" onclick="setSortOrder('desc')">· 최신순</button>
                         <button class="sort-btn ${sortOrder === 'asc' ? 'active' : ''}" onclick="setSortOrder('asc')">· 오래된순</button>
