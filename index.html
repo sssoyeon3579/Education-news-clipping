@@ -1046,21 +1046,25 @@
             renderPopular();
         }
 
-        function renderPopular() {
+        async function renderPopular() {
             const container = document.getElementById('popularList');
             if (!container) return;
             try {
-                const clicks = JSON.parse(localStorage.getItem('icm_clicks') || '[]');
-                const cutoff = Date.now() - 7 * 86400000;
+                const thirtyDaysAgo = new Date(Date.now() - 30 * 86400000).toISOString();
+                const { data: clicks } = await _supa.from('clicks').select('url').gte('clicked_at', thirtyDaysAgo);
+                if (!clicks || !clicks.length) {
+                    container.innerHTML = '<p class="popular-empty">아직 클릭 데이터가 없어요 :)</p>';
+                    return;
+                }
                 const freq = {};
-                clicks.filter(c => c.t > cutoff).forEach(c => { freq[c.url] = (freq[c.url] || 0) + 1; });
+                clicks.forEach(c => { freq[c.url] = (freq[c.url] || 0) + 1; });
                 const top5 = Object.entries(freq)
                     .sort((a, b) => b[1] - a[1])
                     .slice(0, 5)
                     .map(([url]) => allNews.find(n => n.url === url))
                     .filter(Boolean);
                 if (!top5.length) {
-                    container.innerHTML = '<p class="popular-empty">기사를 클릭하면 여기에 쌓여요 :)</p>';
+                    container.innerHTML = '<p class="popular-empty">아직 클릭 데이터가 없어요 :)</p>';
                     return;
                 }
                 container.innerHTML = top5.map((item, i) => `
@@ -1099,7 +1103,7 @@
             currentMonth = new Date(today.getFullYear(), today.getMonth());
 
             renderCategoryFilters();
-            renderPopular();
+            await renderPopular();
             updateStats();
             renderCalendar();
             renderNews();
