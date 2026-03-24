@@ -1268,7 +1268,7 @@
                 .map(cat => [cat, newsDataByCategory[cat]])
                 .map(([cat, list]) => {
                     let filtered = list;
-                    if (rangeStart) filtered = filtered.filter(i => i.date >= rangeStart && i.date <= rangeEnd);
+                    if (rangeStart && !q) filtered = filtered.filter(i => i.date >= rangeStart && i.date <= rangeEnd);
                     if (q) filtered = filtered.filter(i =>
                         i.title.toLowerCase().includes(q) ||
                         i.summary.toLowerCase().includes(q) ||
