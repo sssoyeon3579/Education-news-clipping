@@ -1089,25 +1089,35 @@
 
         // ── 초기화 ──
         async function init() {
-            await mergeSupabaseNews();
-            trackVisitor();
-
+            // 하드코딩 데이터로 먼저 즉시 렌더링
             allNews = [];
             Object.values(newsDataByCategory).forEach(cat => allNews.push(...cat));
             Object.keys(newsDataByCategory).forEach(cat => selectedCategories.add(cat));
 
-            // 기본값: 오늘 날짜 선택
             const today = new Date();
             const todayStr = `${today.getFullYear()}-${String(today.getMonth()+1).padStart(2,'0')}-${String(today.getDate()).padStart(2,'0')}`;
             dateRange = { start: todayStr, end: todayStr };
             currentMonth = new Date(today.getFullYear(), today.getMonth());
 
             renderCategoryFilters();
-            await renderPopular();
             updateStats();
             renderCalendar();
             renderNews();
             updateFeedTitle();
+
+            // Supabase 데이터는 백그라운드에서 병렬 로드
+            trackVisitor();
+            await Promise.all([
+                mergeSupabaseNews().then(() => {
+                    allNews = [];
+                    Object.values(newsDataByCategory).forEach(cat => allNews.push(...cat));
+                    renderCategoryFilters();
+                    updateStats();
+                    renderCalendar();
+                    renderNews();
+                }),
+                renderPopular()
+            ]);
         }
 
         function renderCategoryFilters() {
