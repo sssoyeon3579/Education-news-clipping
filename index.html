@@ -118,6 +118,11 @@
             letter-spacing: 0.2px;
         }
 
+        .header-links {
+            display: flex;
+            align-items: center;
+            gap: 32px;
+        }
         .header-ext-link {
             font-size: 16px;
             font-weight: 600;
@@ -790,7 +795,7 @@
             header { padding: 0 20px; }
             .header-logo img { height: 26px; }
             .header-badge { display: none; }
-            .header-ext-link { display: none; }
+            .header-links { display: none; }
             .header-title small { font-size: 13px; text-align: right; }
             .mobile-only { display: block; }
             .news-grid { grid-template-columns: 1fr; gap: 14px; }
@@ -835,7 +840,7 @@
                     <small>매일 아침 읽는<br class="mobile-only"> 달달한 아이스크림 추천 기사!</small>
                 </div>
             </div>
-            <div style="display:flex;align-items:center;gap:32px;">
+            <div class="header-links">
                 <a href="https://www.i-scream.co.kr/user/main/MainPage.do?CurrentURL=/user/sign/oAuth2LoginCheck.do" target="_blank" class="header-ext-link">아이스크림S&nbsp;↗</a>
                 <a href="https://www.moe.go.kr/main.do?s=moe" target="_blank" class="header-ext-link">교육부&nbsp;↗</a>
             </div>
