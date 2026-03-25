@@ -1050,8 +1050,8 @@
             const container = document.getElementById('popularList');
             if (!container) return;
             try {
-                const thirtyDaysAgo = new Date(Date.now() - 30 * 86400000).toISOString();
-                const { data: clicks } = await _supa.from('clicks').select('url').gte('clicked_at', thirtyDaysAgo);
+                const sevenDaysAgo = new Date(Date.now() - 7 * 86400000).toISOString();
+                const { data: clicks } = await _supa.from('clicks').select('url').gte('clicked_at', sevenDaysAgo).limit(500);
                 if (!clicks || !clicks.length) {
                     container.innerHTML = '<p class="popular-empty">아직 클릭 데이터가 없어요 :)</p>';
                     return;
@@ -1105,18 +1105,16 @@
             renderNews();
             updateFeedTitle();
 
-            // Supabase 데이터는 백그라운드에서 병렬 로드
+            // Supabase 데이터는 완전 백그라운드 (렌더링 블로킹 없음)
             trackVisitor();
-            await Promise.all([
-                mergeSupabaseNews().then(() => {
-                    allNews = [];
-                    Object.values(newsDataByCategory).forEach(cat => allNews.push(...cat));
-                    updateStats();
-                    renderCalendar();
-                    renderNews();
-                }),
-                renderPopular()
-            ]);
+            mergeSupabaseNews().then(() => {
+                allNews = [];
+                Object.values(newsDataByCategory).forEach(cat => allNews.push(...cat));
+                updateStats();
+                renderCalendar();
+                renderNews();
+            });
+            renderPopular();
         }
 
         function renderCategoryFilters() {
