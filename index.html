@@ -1215,6 +1215,14 @@
                     renderCalendar();
                 });
 
+                el.addEventListener('touchstart', (e) => {
+                    if (el.classList.contains('other-month')) return;
+                    isDragging = true;
+                    dragStartDate = dateStr;
+                    dragCurrentDate = dateStr;
+                    renderCalendar();
+                }, { passive: true });
+
                 el.addEventListener('mouseover', () => {
                     if (!isDragging) return;
                     dragCurrentDate = dateStr;
@@ -1225,14 +1233,12 @@
             }
         }
 
-        document.addEventListener('mouseup', () => {
+        function finishDrag() {
             if (!isDragging) return;
             isDragging = false;
             if (dragStartDate === dragCurrentDate) {
-                // 단일 클릭: 항상 해당 날짜 선택 유지
                 dateRange = { start: dragStartDate, end: dragStartDate };
             } else {
-                // 드래그: 범위 확정
                 const s = dragStartDate <= dragCurrentDate ? dragStartDate : dragCurrentDate;
                 const e = dragStartDate <= dragCurrentDate ? dragCurrentDate : dragStartDate;
                 dateRange = { start: s, end: e };
@@ -1241,7 +1247,22 @@
             dragCurrentDate = null;
             renderCalendar();
             applyFilters();
-        });
+        }
+
+        document.addEventListener('mouseup', finishDrag);
+
+        // 모바일 터치 지원
+        document.addEventListener('touchend', finishDrag);
+        document.addEventListener('touchcancel', finishDrag);
+        document.addEventListener('touchmove', (e) => {
+            if (!isDragging) return;
+            const touch = e.touches[0];
+            const el = document.elementFromPoint(touch.clientX, touch.clientY);
+            if (el && el.dataset.date) {
+                dragCurrentDate = el.dataset.date;
+                renderCalendar();
+            }
+        }, { passive: true });
 
         function showToday() {
             const today = new Date();
