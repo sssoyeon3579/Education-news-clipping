@@ -1134,15 +1134,9 @@
     async function loadStats() {
         const _now = new Date();
 
-        // 오늘 방문자: 오늘 12:00 ~ 내일 12:00 (현재 12시 이전이면 어제 12:00 ~ 오늘 12:00)
-        let todayStart, todayEnd;
-        if (_now.getHours() >= 12) {
-            todayStart = new Date(_now.getFullYear(), _now.getMonth(), _now.getDate(), 12, 0, 0);
-            todayEnd   = new Date(_now.getFullYear(), _now.getMonth(), _now.getDate() + 1, 12, 0, 0);
-        } else {
-            todayStart = new Date(_now.getFullYear(), _now.getMonth(), _now.getDate() - 1, 12, 0, 0);
-            todayEnd   = new Date(_now.getFullYear(), _now.getMonth(), _now.getDate(), 12, 0, 0);
-        }
+        // 오늘 방문자: 오늘 00:00 ~ 내일 00:00
+        const todayStart = new Date(_now.getFullYear(), _now.getMonth(), _now.getDate(), 0, 0, 0);
+        const todayEnd   = new Date(_now.getFullYear(), _now.getMonth(), _now.getDate() + 1, 0, 0, 0);
 
         // 이번주 방문자: 이번 주 일요일 00:00 ~ 토요일 23:59:59
         const _dow = _now.getDay(); // 0=일, 6=토
