@@ -77,28 +77,25 @@
             z-index: 200;
         }
 
-        #mobile-dim-msg {
-            position: absolute;
-            bottom: 40%;
-            left: 50%;
-            transform: translateX(-50%);
-            background: #fff;
-            color: #111;
-            font-size: 15px;
-            font-weight: 600;
-            padding: 14px 24px;
-            border-radius: 12px;
-            white-space: nowrap;
-            box-shadow: 0 4px 20px rgba(0,0,0,0.15);
+        #mobile-select-hint {
+            display: none;
+            background: #fff3ee;
+            border: 1.5px solid #e9460a;
+            border-radius: 10px;
+            padding: 10px 14px;
+            margin-bottom: 12px;
+            text-align: center;
         }
 
-        #mobile-dim-msg span {
-            display: block;
-            font-size: 12px;
-            font-weight: 400;
+        #mobile-select-hint p {
+            font-size: 13px;
+            font-weight: 700;
+            color: #e9460a;
+        }
+
+        #mobile-select-hint span {
+            font-size: 11px;
             color: #999;
-            margin-top: 4px;
-            text-align: center;
         }
 
         .header-badge {
@@ -762,7 +759,7 @@
         /* ─── 반응형 ─── */
         @media (max-width: 1024px) {
             .main-layout { grid-template-columns: 1fr; }
-            .sidebar { position: static; }
+            .sidebar { position: relative; }
         }
 
         @media (max-width: 768px) {
@@ -782,9 +779,7 @@
 <body>
 
     <!-- 모바일 날짜 선택 딤 오버레이 -->
-    <div id="mobile-dim">
-        <div id="mobile-dim-msg">종료 날짜를 선택하세요<span>같은 날짜를 탭하면 하루만 선택</span></div>
-    </div>
+    <div id="mobile-dim"></div>
 
     <!-- 배경 로고 워터마크 -->
     <div style="
@@ -826,6 +821,10 @@
                             <button onclick="prevMonth()">◀</button>
                             <button onclick="nextMonth()">▶</button>
                         </div>
+                    </div>
+                    <div id="mobile-select-hint">
+                        <p>종료 날짜를 선택하세요</p>
+                        <span>같은 날짜를 탭하면 하루만 선택</span>
                     </div>
                     <div class="calendar-grid" id="calendarGrid"></div>
                     <div class="stats">
@@ -1258,11 +1257,12 @@
                 el.addEventListener('touchstart', (e) => {
                     if (el.classList.contains('other-month')) return;
                     if (!mobileStartDate) {
-                        // 1번 탭: 시작 날짜 선택 + 딤 표시
+                        // 1번 탭: 시작 날짜 선택 + 딤 + 힌트 표시
                         mobileStartDate = dateStr;
                         dragStartDate = dateStr;
                         dragCurrentDate = dateStr;
                         document.getElementById('mobile-dim').style.display = 'block';
+                        document.getElementById('mobile-select-hint').style.display = 'block';
                         renderCalendar();
                     } else {
                         // 2번 탭: 종료 날짜 확정
@@ -1273,6 +1273,7 @@
                         dragStartDate = null;
                         dragCurrentDate = null;
                         document.getElementById('mobile-dim').style.display = 'none';
+                        document.getElementById('mobile-select-hint').style.display = 'none';
                         renderCalendar();
                         applyFilters();
                     }
@@ -1312,6 +1313,7 @@
             dragStartDate = null;
             dragCurrentDate = null;
             document.getElementById('mobile-dim').style.display = 'none';
+            document.getElementById('mobile-select-hint').style.display = 'none';
             renderCalendar();
         });
 
