@@ -1271,7 +1271,8 @@
                 el.addEventListener('touchstart', (e) => {
                     if (el.classList.contains('other-month')) return;
                     if (!mobileStartDate) {
-                        // 1번 탭: 시작 날짜 선택 + 딤 + 힌트 표시
+                        // 1번 탭: 기존 범위 초기화 후 시작 날짜 선택 + 딤 + 힌트 표시
+                        dateRange = { start: null, end: null };
                         mobileStartDate = dateStr;
                         dragStartDate = dateStr;
                         dragCurrentDate = dateStr;
