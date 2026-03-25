@@ -1578,7 +1578,7 @@
 
         function updateStats() {
             const today = new Date();
-            const todayStr = today.toISOString().slice(0, 10);
+            const todayStr = `${today.getFullYear()}-${String(today.getMonth()+1).padStart(2,'0')}-${String(today.getDate()).padStart(2,'0')}`;
             // 이번주 월요일 구하기
             const day = today.getDay(); // 0=일,1=월,...
             const diff = (day === 0 ? -6 : 1 - day);
