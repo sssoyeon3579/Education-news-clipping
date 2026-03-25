@@ -1607,7 +1607,7 @@
 
     <style>
         #scroll-top-btn {
-            display: none;
+            display: flex;
             position: fixed;
             bottom: 24px;
             right: 20px;
@@ -1621,21 +1621,23 @@
             align-items: center;
             justify-content: center;
             box-shadow: 0 4px 12px rgba(233,70,10,0.35);
-            z-index: 999;
+            z-index: 9999;
             opacity: 0;
-            transform: translateY(10px);
+            pointer-events: none;
             transition: opacity 0.25s, transform 0.25s;
+            transform: translateY(10px);
         }
         #scroll-top-btn.visible {
             opacity: 1;
+            pointer-events: auto;
             transform: translateY(0);
         }
         #scroll-top-btn:active {
             transform: scale(0.92);
         }
-        @media (max-width: 768px) {
+        @media (min-width: 769px) {
             #scroll-top-btn {
-                display: flex;
+                display: none !important;
             }
         }
     </style>
