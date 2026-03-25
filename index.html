@@ -118,6 +118,16 @@
             letter-spacing: 0.2px;
         }
 
+        .header-ext-link {
+            font-size: 14px;
+            font-weight: 600;
+            color: #555;
+            text-decoration: none;
+            letter-spacing: 0.1px;
+            transition: color 0.2s;
+        }
+        .header-ext-link:hover { color: #e9460a; }
+
         /* ─── 컨테이너 ─── */
         .container {
             max-width: 1560px;
@@ -823,7 +833,10 @@
                 <small>매일 아침 읽는<br class="mobile-only"> 달달한 아이스크림 추천 기사!</small>
             </div>
         </div>
-        <div class="header-badge">Education news clipping</div>
+        <div style="display:flex;align-items:center;gap:20px;">
+            <a href="https://www.i-scream.co.kr/user/main/MainPage.do?CurrentURL=/user/sign/oAuth2LoginCheck.do" target="_blank" class="header-ext-link">아이스크림S&nbsp;↗</a>
+            <div class="header-badge">Education news clipping</div>
+        </div>
     </header>
 
     <div class="container">
