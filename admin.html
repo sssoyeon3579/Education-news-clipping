@@ -1133,14 +1133,33 @@
     // ── 통계 ──
     async function loadStats() {
         const _now = new Date();
-        const today = `${_now.getFullYear()}-${String(_now.getMonth()+1).padStart(2,'0')}-${String(_now.getDate()).padStart(2,'0')}`;
-        const weekAgo = new Date(Date.now() - 7 * 86400000).toISOString().slice(0, 10);
+
+        // 오늘 방문자: 오늘 12:00 ~ 내일 12:00 (현재 12시 이전이면 어제 12:00 ~ 오늘 12:00)
+        let todayStart, todayEnd;
+        if (_now.getHours() >= 12) {
+            todayStart = new Date(_now.getFullYear(), _now.getMonth(), _now.getDate(), 12, 0, 0);
+            todayEnd   = new Date(_now.getFullYear(), _now.getMonth(), _now.getDate() + 1, 12, 0, 0);
+        } else {
+            todayStart = new Date(_now.getFullYear(), _now.getMonth(), _now.getDate() - 1, 12, 0, 0);
+            todayEnd   = new Date(_now.getFullYear(), _now.getMonth(), _now.getDate(), 12, 0, 0);
+        }
+
+        // 이번주 방문자: 이번 주 일요일 00:00 ~ 토요일 23:59:59
+        const _dow = _now.getDay(); // 0=일, 6=토
+        const weekStart = new Date(_now.getFullYear(), _now.getMonth(), _now.getDate() - _dow, 0, 0, 0);
+        const weekEnd   = new Date(_now.getFullYear(), _now.getMonth(), _now.getDate() - _dow + 7, 0, 0, 0);
 
         // 방문자
         const { data: visitors } = await supa.from('visitors').select('created_at');
         if (visitors) {
-            const todayCount = visitors.filter(v => v.created_at.slice(0, 10) === today).length;
-            const weekCount = visitors.filter(v => v.created_at.slice(0, 10) >= weekAgo).length;
+            const todayCount = visitors.filter(v => {
+                const d = new Date(v.created_at);
+                return d >= todayStart && d < todayEnd;
+            }).length;
+            const weekCount = visitors.filter(v => {
+                const d = new Date(v.created_at);
+                return d >= weekStart && d < weekEnd;
+            }).length;
             document.getElementById('statToday').textContent = todayCount.toLocaleString();
             document.getElementById('statWeek').textContent = weekCount.toLocaleString();
             document.getElementById('statTotal').textContent = visitors.length.toLocaleString();
