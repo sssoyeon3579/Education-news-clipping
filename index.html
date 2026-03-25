@@ -1597,5 +1597,60 @@
         document.addEventListener('DOMContentLoaded', init);
     </script>
     <div class="toast" id="toast"></div>
+
+    <!-- 상단으로 버튼 (모바일 전용) -->
+    <button id="scroll-top-btn" onclick="window.scrollTo({top:0,behavior:'smooth'})" aria-label="상단으로 이동">
+        <svg xmlns="http://www.w3.org/2000/svg" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+            <polyline points="18 15 12 9 6 15"></polyline>
+        </svg>
+    </button>
+
+    <style>
+        #scroll-top-btn {
+            display: none;
+            position: fixed;
+            bottom: 24px;
+            right: 20px;
+            width: 44px;
+            height: 44px;
+            border-radius: 50%;
+            background: #e9460a;
+            color: #fff;
+            border: none;
+            cursor: pointer;
+            align-items: center;
+            justify-content: center;
+            box-shadow: 0 4px 12px rgba(233,70,10,0.35);
+            z-index: 999;
+            opacity: 0;
+            transform: translateY(10px);
+            transition: opacity 0.25s, transform 0.25s;
+        }
+        #scroll-top-btn.visible {
+            opacity: 1;
+            transform: translateY(0);
+        }
+        #scroll-top-btn:active {
+            transform: scale(0.92);
+        }
+        @media (max-width: 768px) {
+            #scroll-top-btn {
+                display: flex;
+            }
+        }
+    </style>
+
+    <script>
+        (function() {
+            const btn = document.getElementById('scroll-top-btn');
+            window.addEventListener('scroll', function() {
+                if (window.scrollY > 300) {
+                    btn.classList.add('visible');
+                } else {
+                    btn.classList.remove('visible');
+                }
+            }, { passive: true });
+        })();
+    </script>
 </body>
 </html>
