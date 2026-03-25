@@ -786,9 +786,10 @@
             .feed-title { font-size: 20px; white-space: nowrap; }
             .feed-title-row { flex-direction: column; align-items: flex-start; gap: 12px; }
             .feed-title-row .search-box { width: 100%; }
-            .category-title { font-size: 22px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-            .sort-btn-group { flex-shrink: 0; gap: 0; }
-            .sort-btn { padding: 4px 6px; white-space: nowrap; }
+            .category-header { flex-wrap: nowrap; align-items: center; }
+            .category-title { font-size: 22px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; min-width: 0; flex: 1; }
+            .sort-btn-group { flex-shrink: 0; gap: 0; margin-left: 8px; }
+            .sort-btn { padding: 4px 6px; white-space: nowrap; font-size: 12px; }
         }
     </style>
 </head>
