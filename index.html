@@ -67,6 +67,8 @@
             margin-top: 2px;
         }
 
+        .mobile-only { display: none; }
+
         .header-badge {
             font-size: 15px;
             font-weight: 600;
@@ -734,6 +736,7 @@
             .header-logo img { height: 26px; }
             .header-badge { display: none; }
             .header-title small { font-size: 13px; text-align: right; }
+            .mobile-only { display: block; }
             .news-grid { grid-template-columns: 1fr; gap: 14px; }
             .feed-title { font-size: 20px; }
         }
@@ -763,7 +766,7 @@
             <a href="." style="display:flex;align-items:center;text-decoration:none;"><img src="./brand_logo/아이스크림미디어 로고.png" alt="아이스크림미디어"></a>
             <div class="header-divider"></div>
             <div class="header-title">
-                <small>매일 아침 읽는 달달한 아이스크림 추천 기사!</small>
+                <small>매일 아침 읽는<br class="mobile-only">달달한 아이스크림 추천 기사!</small>
             </div>
         </div>
         <div class="header-badge">Education news clipping</div>
