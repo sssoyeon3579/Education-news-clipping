@@ -739,7 +739,9 @@
             .header-title small { font-size: 13px; text-align: right; }
             .mobile-only { display: block; }
             .news-grid { grid-template-columns: 1fr; gap: 14px; }
-            .feed-title { font-size: 20px; }
+            .feed-title { font-size: 20px; white-space: nowrap; }
+            .feed-title-row { flex-direction: column; align-items: flex-start; gap: 12px; }
+            .feed-title-row .search-box { width: 100%; }
         }
     </style>
 </head>
@@ -815,7 +817,7 @@
                     <div class="feed-title-row">
                         <div>
                             <h2 class="feed-title" id="feedTitle">모든 뉴스</h2>
-                            <p class="feed-subtitle" id="feedSubtitle">총 0개의 뉴스</p>
+                            <p class="feed-subtitle" id="feedSubtitle">불러오는 중...</p>
                         </div>
                         <div class="search-box">
                             <input type="text" id="searchInput" placeholder="다시 읽고 싶은 뉴스가 있으세요?" oninput="applyFilters()">
