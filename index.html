@@ -1006,6 +1006,7 @@
 
         function trackVisitor() {
             try {
+                if (/bot|crawler|spider|crawling|facebookexternalhit|twitterbot|linkedinbot|kakaotalk|yeti|baiduspider|bingbot|googlebot|slurp|duckduckbot|sogou|exabot|ia_archiver/i.test(navigator.userAgent)) return;
                 if (sessionStorage.getItem('icm_visited')) return;
                 const sid = Math.random().toString(36).slice(2);
                 sessionStorage.setItem('icm_visited', sid);
