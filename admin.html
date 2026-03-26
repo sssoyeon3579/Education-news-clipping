@@ -194,7 +194,7 @@
         .list-count { font-size: 13px; color: #999; margin-left: auto; }
 
         /* ── 통계 ── */
-        .stats-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 16px; margin-bottom: 20px; }
+        .stats-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 16px; margin-bottom: 20px; }
         .stat-card {
             background: #fff; border-radius: 14px; padding: 20px 22px;
             box-shadow: 0 1px 3px rgba(0,0,0,0.06);
@@ -491,6 +491,10 @@
                 <div class="stat-card">
                     <div class="stat-card-num" id="statToday">—</div>
                     <div class="stat-card-label">오늘 방문자</div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-card-num" id="statYesterday">—</div>
+                    <div class="stat-card-label">어제 방문자</div>
                 </div>
                 <div class="stat-card">
                     <div class="stat-card-num" id="statWeek">—</div>
@@ -1135,8 +1139,12 @@
         const _now = new Date();
 
         // 오늘 방문자: 오늘 00:00 ~ 내일 00:00
-        const todayStart = new Date(_now.getFullYear(), _now.getMonth(), _now.getDate(), 0, 0, 0);
-        const todayEnd   = new Date(_now.getFullYear(), _now.getMonth(), _now.getDate() + 1, 0, 0, 0);
+        const todayStart     = new Date(_now.getFullYear(), _now.getMonth(), _now.getDate(), 0, 0, 0);
+        const todayEnd       = new Date(_now.getFullYear(), _now.getMonth(), _now.getDate() + 1, 0, 0, 0);
+
+        // 어제 방문자: 어제 00:00 ~ 어제 23:59:59
+        const yesterdayStart = new Date(_now.getFullYear(), _now.getMonth(), _now.getDate() - 1, 0, 0, 0);
+        const yesterdayEnd   = new Date(_now.getFullYear(), _now.getMonth(), _now.getDate(), 0, 0, 0);
 
         // 이번주 방문자: 이번 주 일요일 00:00 ~ 토요일 23:59:59
         const _dow = _now.getDay(); // 0=일, 6=토
@@ -1150,18 +1158,23 @@
                 const d = new Date(v.created_at);
                 return d >= todayStart && d < todayEnd;
             }).length;
+            const yesterdayCount = visitors.filter(v => {
+                const d = new Date(v.created_at);
+                return d >= yesterdayStart && d < yesterdayEnd;
+            }).length;
             const weekCount = visitors.filter(v => {
                 const d = new Date(v.created_at);
                 return d >= weekStart && d < weekEnd;
             }).length;
             document.getElementById('statToday').textContent = todayCount.toLocaleString();
+            document.getElementById('statYesterday').textContent = yesterdayCount.toLocaleString();
             document.getElementById('statWeek').textContent = weekCount.toLocaleString();
             document.getElementById('statTotal').textContent = visitors.length.toLocaleString();
         }
 
-        // 인기 기사 (최근 30일)
-        const thirtyDaysAgo = new Date(Date.now() - 30 * 86400000).toISOString();
-        const { data: clicks } = await supa.from('clicks').select('url, clicked_at').gte('clicked_at', thirtyDaysAgo);
+        // 인기 기사 (최근 7일)
+        const sevenDaysAgo = new Date(Date.now() - 7 * 86400000).toISOString();
+        const { data: clicks } = await supa.from('clicks').select('url, clicked_at').gte('clicked_at', sevenDaysAgo);
         if (clicks) {
             const freq = {};
             clicks.forEach(c => { freq[c.url] = (freq[c.url] || 0) + 1; });
