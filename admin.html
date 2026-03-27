@@ -1271,10 +1271,11 @@
         ];
 
         let text = '';
+        let num = 1;
         orderedCats.forEach(cat => {
             text += `[${cat}]\n`;
-            grouped[cat].forEach((n, i) => {
-                text += `${i + 1}. ${n.title}\n`;
+            grouped[cat].forEach((n) => {
+                text += `${num++}. ${n.title}\n`;
                 text += `${n.url}\n`;
                 text += `${n.summary}\n`;
                 text += '\n';
