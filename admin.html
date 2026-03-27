@@ -308,6 +308,7 @@
             transition: background 0.15s; white-space: nowrap;
         }
         .nl-gen-btn:hover { background: #c73a07; }
+        .nl-gen-btn[style*="background:#444"]:hover { background: #222 !important; }
         .nl-gen-btn:disabled { background: #ccc; cursor: not-allowed; }
         .nl-copy-btn {
             padding: 8px 20px; background: #111; color: #fff;
@@ -536,7 +537,18 @@
                     <button class="nl-gen-btn" id="newsletterGenBtn" onclick="generateNewsletter()">
                         뉴스레터 생성
                     </button>
+                    <button class="nl-gen-btn" id="textGenBtn" onclick="generateTextSummary()" style="background:#444;">
+                        텍스트 생성
+                    </button>
                 </div>
+            </div>
+
+            <div class="card" id="textResultCard" style="display:none;">
+                <div class="nl-result-header">
+                    <div class="card-title" style="margin-bottom:0;">📄 텍스트 요약</div>
+                    <button class="nl-copy-btn" id="textCopyBtn" onclick="copyTextSummary()">텍스트 복사</button>
+                </div>
+                <textarea class="nl-code-textarea" id="textSummaryOutput" readonly style="height:400px; margin-top:12px;"></textarea>
             </div>
 
             <div class="card" id="newsletterResultCard" style="display:none;">
@@ -1231,6 +1243,57 @@
 
     function escapeHtml(str) {
         return (str || '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+    }
+
+    async function generateTextSummary() {
+        const date = document.getElementById('newsletterDate').value;
+        if (!date) { showToast('날짜를 선택해주세요'); return; }
+
+        const btn = document.getElementById('textGenBtn');
+        btn.disabled = true; btn.textContent = '생성 중...';
+
+        const { data, error } = await supa.from('news').select('*').eq('date', date).order('sort_order', { ascending: true });
+
+        btn.disabled = false; btn.textContent = '텍스트 생성';
+
+        if (error) { showToast('데이터를 불러오지 못했어요'); return; }
+        if (!data || !data.length) { showToast('해당 날짜에 등록된 기사가 없습니다'); return; }
+
+        const grouped = {};
+        data.forEach(n => {
+            if (!grouped[n.category]) grouped[n.category] = [];
+            grouped[n.category].push(n);
+        });
+
+        const orderedCats = [
+            ...NL_CAT_ORDER.filter(c => grouped[c]),
+            ...Object.keys(grouped).filter(c => !NL_CAT_ORDER.includes(c))
+        ];
+
+        let text = '';
+        orderedCats.forEach(cat => {
+            text += `[${cat}]\n`;
+            grouped[cat].forEach((n, i) => {
+                text += `${i + 1}. ${n.title}\n`;
+                text += `${n.url}\n`;
+                text += `${n.summary}\n`;
+                text += '\n';
+            });
+        });
+
+        document.getElementById('textSummaryOutput').value = text.trimEnd();
+        document.getElementById('textResultCard').style.display = 'block';
+        showToast('텍스트 생성 완료!');
+    }
+
+    function copyTextSummary() {
+        const text = document.getElementById('textSummaryOutput').value;
+        navigator.clipboard.writeText(text).then(() => {
+            const btn = document.getElementById('textCopyBtn');
+            btn.textContent = '복사됨!';
+            btn.classList.add('copied');
+            setTimeout(() => { btn.textContent = '텍스트 복사'; btn.classList.remove('copied'); }, 2000);
+        });
     }
 
     async function generateNewsletter() {
