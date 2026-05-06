@@ -1149,39 +1149,46 @@
     // ── 통계 ──
     async function loadStats() {
         const _now = new Date();
+        const toDateStr = d => {
+            const y = d.getFullYear();
+            const m = String(d.getMonth() + 1).padStart(2, '0');
+            const dd = String(d.getDate()).padStart(2, '0');
+            return `${y}-${m}-${dd}`;
+        };
 
-        // 오늘 방문자: 오늘 00:00 ~ 내일 00:00
-        const todayStart     = new Date(_now.getFullYear(), _now.getMonth(), _now.getDate(), 0, 0, 0);
-        const todayEnd       = new Date(_now.getFullYear(), _now.getMonth(), _now.getDate() + 1, 0, 0, 0);
+        const todayStr     = toDateStr(_now);
+        const yesterdayStr = toDateStr(new Date(_now.getFullYear(), _now.getMonth(), _now.getDate() - 1));
+        const weekStartStr = toDateStr(new Date(_now.getFullYear(), _now.getMonth(), _now.getDate() - _now.getDay()));
 
-        // 어제 방문자: 어제 00:00 ~ 어제 23:59:59
-        const yesterdayStart = new Date(_now.getFullYear(), _now.getMonth(), _now.getDate() - 1, 0, 0, 0);
-        const yesterdayEnd   = new Date(_now.getFullYear(), _now.getMonth(), _now.getDate(), 0, 0, 0);
+        const fmt = n => (n != null ? Number(n).toLocaleString() : '—');
 
-        // 이번주 방문자: 이번 주 일요일 00:00 ~ 토요일 23:59:59
-        const _dow = _now.getDay(); // 0=일, 6=토
-        const weekStart = new Date(_now.getFullYear(), _now.getMonth(), _now.getDate() - _dow, 0, 0, 0);
-        const weekEnd   = new Date(_now.getFullYear(), _now.getMonth(), _now.getDate() - _dow + 7, 0, 0, 0);
+        // 방문자 — visited_date(DATE)로 서버측 카운트 (created_at UTC 오차 없음)
+        const [todayRes, yesterdayRes, weekRes, totalRes] = await Promise.all([
+            supa.from('visitors').select('*', { count: 'exact', head: true }).eq('visited_date', todayStr),
+            supa.from('visitors').select('*', { count: 'exact', head: true }).eq('visited_date', yesterdayStr),
+            supa.from('visitors').select('*', { count: 'exact', head: true }).gte('visited_date', weekStartStr).lte('visited_date', todayStr),
+            supa.from('visitors').select('*', { count: 'exact', head: true })
+        ]);
 
-        // 방문자
-        const { data: visitors } = await supa.from('visitors').select('created_at');
-        if (visitors) {
-            const todayCount = visitors.filter(v => {
-                const d = new Date(v.created_at);
-                return d >= todayStart && d < todayEnd;
-            }).length;
-            const yesterdayCount = visitors.filter(v => {
-                const d = new Date(v.created_at);
-                return d >= yesterdayStart && d < yesterdayEnd;
-            }).length;
-            const weekCount = visitors.filter(v => {
-                const d = new Date(v.created_at);
-                return d >= weekStart && d < weekEnd;
-            }).length;
-            document.getElementById('statToday').textContent = todayCount.toLocaleString();
-            document.getElementById('statYesterday').textContent = yesterdayCount.toLocaleString();
-            document.getElementById('statWeek').textContent = weekCount.toLocaleString();
-            document.getElementById('statTotal').textContent = visitors.length.toLocaleString();
+        console.log('[stats] todayStr:', todayStr, 'yesterdayStr:', yesterdayStr, 'weekStartStr:', weekStartStr);
+        console.log('[stats] todayRes:', todayRes);
+        console.log('[stats] yesterdayRes:', yesterdayRes);
+        console.log('[stats] weekRes:', weekRes);
+        console.log('[stats] totalRes:', totalRes);
+
+        if (todayRes.error || yesterdayRes.error || weekRes.error || totalRes.error) {
+            const err = todayRes.error || yesterdayRes.error || weekRes.error || totalRes.error;
+            console.error('[stats] visitors 쿼리 에러:', err);
+            document.getElementById('statToday').textContent = '에러';
+            document.getElementById('statToday').title = err.message;
+            document.getElementById('statYesterday').textContent = err.message;
+            document.getElementById('statWeek').textContent = '↑ F12 콘솔 확인';
+            document.getElementById('statTotal').textContent = '에러';
+        } else {
+            document.getElementById('statToday').textContent     = fmt(todayRes.count);
+            document.getElementById('statYesterday').textContent = fmt(yesterdayRes.count);
+            document.getElementById('statWeek').textContent      = fmt(weekRes.count);
+            document.getElementById('statTotal').textContent     = fmt(totalRes.count);
         }
 
         // 인기 기사 (최근 7일)
@@ -1192,7 +1199,6 @@
             clicks.forEach(c => { freq[c.url] = (freq[c.url] || 0) + 1; });
             const top10 = Object.entries(freq).sort((a, b) => b[1] - a[1]).slice(0, 10);
 
-            // 기사 제목 가져오기
             const { data: newsData } = await supa.from('news').select('url, title');
             const titleMap = {};
             (newsData || []).forEach(n => { titleMap[n.url] = n.title; });
@@ -1211,6 +1217,7 @@
         }
 
         // 인기 검색어 (최근 30일)
+        const thirtyDaysAgo = new Date(Date.now() - 30 * 86400000).toISOString();
         const { data: searches } = await supa.from('searches').select('term, searched_at').gte('searched_at', thirtyDaysAgo);
         if (searches) {
             const freq = {};
