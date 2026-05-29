@@ -361,9 +361,14 @@
         .search-article-info { flex: 1; min-width: 0; }
         .search-article-title {
             font-size: 14px; font-weight: 600; color: #111;
-            margin-bottom: 5px; line-height: 1.5; word-break: keep-all;
+            margin-bottom: 5px; line-height: 1.5;
+            overflow-wrap: break-word; word-break: break-all;
+            white-space: normal;
         }
-        .search-article-title a { color: inherit; text-decoration: none; }
+        .search-article-title a {
+            color: inherit; text-decoration: none;
+            display: inline; white-space: normal;
+        }
         .search-article-title a:hover { color: #e9460a; text-decoration: underline; }
         .search-article-meta { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
         .search-article-kw {
@@ -1709,21 +1714,29 @@
                     const res = await fetch(`/api/search?query=${encodeURIComponent(kw)}&display=100`);
                     if (!res.ok) continue;
                     const data = await res.json();
+                    // 키워드 유형별 최대 노출 건수
+                    const kwMax = category === '에듀테크 기업 소식' ? 1
+                        : (kw.includes('교육청') || kw === '전교조' || kw === '교총' || kw === '교사 단체') ? 2
+                        : 3;
+
+                    const kwArticles = [];
                     for (const item of data.items || []) {
                         dbgFetched++;
                         const link = item.link || item.originallink;
                         if (seen.has(link)) continue;
-                        const inRange = isInDateRange(item.pubDate);
-                        if (!inRange) { dbgDate++; continue; }
+                        if (!isInDateRange(item.pubDate)) { dbgDate++; continue; }
                         const title = item.title.replace(/<[^>]+>/g, '').replace(/&quot;/g, '"').replace(/&amp;/g, '&').replace(/&#039;/g, "'");
-                        const excl = isExcluded(title, kw, link);
-                        if (excl) { dbgExcluded++; continue; }
-                        seen.add(link);
-                        categoryResults[category].push({
-                            title, url: link, date: item.pubDate,
-                            keyword: kw, score: getPublisherScore(link)
-                        });
+                        if (isExcluded(title, kw, link)) { dbgExcluded++; continue; }
+                        kwArticles.push({ title, url: link, date: item.pubDate, keyword: kw, score: getPublisherScore(link) });
                     }
+                    // 언론사 우선순위 정렬 후 상위 N건만 추가
+                    kwArticles.sort((a, b) => b.score - a.score);
+                    kwArticles.slice(0, kwMax).forEach(a => {
+                        if (!seen.has(a.url)) {
+                            seen.add(a.url);
+                            categoryResults[category].push(a);
+                        }
+                    });
                 } catch(e) { console.warn(kw, e); }
             }
             // 언론사 우선순위 정렬
