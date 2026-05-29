@@ -1769,7 +1769,11 @@
             html += `</div>`;
         }
 
-        if (!html) html = '<div class="search-empty">해당 시간대 기사가 없습니다.<br><span style="font-size:12px;color:#ccc;">어제 오전 8시 ~ 현재</span></div>';
+        if (!html) {
+            const s = document.getElementById('searchStart').value.replace('T', ' ').slice(0,16);
+            const e = document.getElementById('searchEnd').value.replace('T', ' ').slice(0,16);
+            html = `<div class="search-empty">해당 시간대 기사가 없습니다.<br><span style="font-size:12px;color:#ccc;">${s} ~ ${e}</span><br><span style="font-size:11px;color:#ddd;">※ 네이버 API는 키워드당 최대 100건만 제공해 오래된 날짜는 검색이 제한될 수 있어요.</span></div>`;
+        }
         resultsDiv.innerHTML = html;
         if (total > 0) copyCard.style.display = 'block';
         updateSearchSelection();
