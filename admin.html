@@ -358,16 +358,21 @@
             width: 16px; height: 16px; accent-color: #e9460a;
             flex-shrink: 0; margin-top: 3px; cursor: pointer;
         }
-        .search-article-info { flex: 1; min-width: 0; }
+        .search-article-info { flex: 1; min-width: 0; overflow: visible; }
         .search-article-title {
             font-size: 14px; font-weight: 600; color: #111;
             margin-bottom: 5px; line-height: 1.5;
-            overflow-wrap: break-word; word-break: break-all;
-            white-space: normal;
+            white-space: normal !important;
+            overflow: visible !important;
+            text-overflow: unset !important;
+            word-break: break-word;
         }
         .search-article-title a {
             color: inherit; text-decoration: none;
-            display: inline; white-space: normal;
+            white-space: normal !important;
+            overflow: visible !important;
+            text-overflow: unset !important;
+            display: inline !important;
         }
         .search-article-title a:hover { color: #e9460a; text-decoration: underline; }
         .search-article-meta { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
@@ -1627,7 +1632,9 @@
         '체육센터', '헬스장', '스포츠센터', '수영장', '헬스클럽',
         // 인사 보도자료
         '대표이사 취임', '신임 대표이사', '취임식', '인사발령', '인사이동',
-        '임원 취임', '신임 원장', '신임 이사장', '이사장 취임', '신임 총장'
+        '임원 취임', '신임 원장', '신임 이사장', '이사장 취임', '신임 총장',
+        // 기타
+        '[입찰정보]', '입찰공고', '입찰 공고'
     ];
 
     // AI 관련 키워드 (대학 기사 예외 처리용)
