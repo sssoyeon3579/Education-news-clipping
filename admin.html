@@ -1599,23 +1599,37 @@
         ['zdnet.co.kr', 50],        // ZDNet Korea
     ];
 
-    // 먹는 아이스크림 관련 제외 키워드
+    // 제외 키워드
     const EXCLUDE_TERMS = [
+        // 먹는 아이스크림
         '베스킨', '하겐다즈', '롯데푸드', '빙과', '아이스바', '빙수',
         '소프트콘', '아이스크림 판매', '아이스크림 가격', '아이스크림 시장',
-        '아이스크림 매출', '편의점 아이스크림', '아이스크림 할인'
+        '아이스크림 매출', '편의점 아이스크림', '아이스크림 할인',
+        // 주식
+        '주가', '코스피', '코스닥', '증시', '주식시장', 'IPO', '공모주', '시가총액'
     ];
 
-    // 키워드별 추가 필터 (해당 키워드 검색 결과에만 적용)
+    // AI 관련 키워드 (대학 기사 예외 처리용)
+    const AI_TERMS = ['AI', '인공지능', 'GPT', 'LLM', '생성형'];
+
+    // 키워드별 필수 포함 조건
     const KEYWORD_FILTERS = {
-        '박기석': ['아이스크림미디어', '시공테크', '아이스크림에듀']
+        '박기석': ['아이스크림미디어', '시공테크', '아이스크림에듀', '아이스크림아트']
     };
 
     function isExcluded(title, keyword) {
+        // 기본 제외어
         if (EXCLUDE_TERMS.some(term => title.includes(term))) return true;
+
+        // 키워드별 필수 포함 조건
         if (KEYWORD_FILTERS[keyword]) {
             return !KEYWORD_FILTERS[keyword].some(must => title.includes(must));
         }
+
+        // 대학교·대학원 기사 → AI 관련 아니면 제외
+        if ((title.includes('대학교') || title.includes('대학원')) &&
+            !AI_TERMS.some(a => title.includes(a))) return true;
+
         return false;
     }
 
