@@ -1606,8 +1606,17 @@
         '아이스크림 매출', '편의점 아이스크림', '아이스크림 할인'
     ];
 
-    function isExcluded(title) {
-        return EXCLUDE_TERMS.some(term => title.includes(term));
+    // 키워드별 추가 필터 (해당 키워드 검색 결과에만 적용)
+    const KEYWORD_FILTERS = {
+        '박기석': ['아이스크림미디어', '시공테크', '아이스크림에듀']
+    };
+
+    function isExcluded(title, keyword) {
+        if (EXCLUDE_TERMS.some(term => title.includes(term))) return true;
+        if (KEYWORD_FILTERS[keyword]) {
+            return !KEYWORD_FILTERS[keyword].some(must => title.includes(must));
+        }
+        return false;
     }
 
     function getPublisherScore(url) {
@@ -1673,7 +1682,7 @@
                         const link = item.link || item.originallink;
                         if (seen.has(link)) continue;
                         if (!isInDateRange(item.pubDate)) continue;
-                        if (isExcluded(title)) continue;
+                        if (isExcluded(title, kw)) continue;
                         seen.add(link);
                         const title = item.title.replace(/<[^>]+>/g, '').replace(/&quot;/g, '"').replace(/&amp;/g, '&').replace(/&#039;/g, "'");
                         categoryResults[category].push({
