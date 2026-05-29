@@ -1712,9 +1712,9 @@
                         const link = item.link || item.originallink;
                         if (seen.has(link)) continue;
                         if (!isInDateRange(item.pubDate)) continue;
+                        const title = item.title.replace(/<[^>]+>/g, '').replace(/&quot;/g, '"').replace(/&amp;/g, '&').replace(/&#039;/g, "'");
                         if (isExcluded(title, kw, link)) continue;
                         seen.add(link);
-                        const title = item.title.replace(/<[^>]+>/g, '').replace(/&quot;/g, '"').replace(/&amp;/g, '&').replace(/&#039;/g, "'");
                         categoryResults[category].push({
                             title, url: link, date: item.pubDate,
                             keyword: kw, score: getPublisherScore(link)
