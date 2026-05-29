@@ -1620,12 +1620,21 @@
     // AI 관련 키워드 (대학 기사 예외 처리용)
     const AI_TERMS = ['AI', '인공지능', 'GPT', 'LLM', '생성형'];
 
+    // 제외 언론사 도메인
+    const EXCLUDE_PUBLISHERS = ['ohmynews.com'];
+
     // 키워드별 필수 포함 조건
     const KEYWORD_FILTERS = {
         '박기석': ['아이스크림미디어', '시공테크', '아이스크림에듀', '아이스크림아트']
     };
 
-    function isExcluded(title, keyword) {
+    function isExcluded(title, keyword, url) {
+        // 제외 언론사
+        try {
+            const domain = new URL(url).hostname.replace('www.', '');
+            if (EXCLUDE_PUBLISHERS.some(p => domain.includes(p))) return true;
+        } catch(e) {}
+
         // 기본 제외어
         if (EXCLUDE_TERMS.some(term => title.includes(term))) return true;
 
@@ -1704,7 +1713,7 @@
                         const link = item.link || item.originallink;
                         if (seen.has(link)) continue;
                         if (!isInDateRange(item.pubDate)) continue;
-                        if (isExcluded(title, kw)) continue;
+                        if (isExcluded(title, kw, link)) continue;
                         seen.add(link);
                         const title = item.title.replace(/<[^>]+>/g, '').replace(/&quot;/g, '"').replace(/&amp;/g, '&').replace(/&#039;/g, "'");
                         categoryResults[category].push({
