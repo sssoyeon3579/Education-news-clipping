@@ -612,8 +612,16 @@
         <div id="tab-search" class="tab-content">
 
             <div class="card">
-                <div class="card-title">🔍 오늘의 후보 기사 검색</div>
-                <div style="display:flex; gap:12px; align-items:center; margin-bottom:24px; flex-wrap:wrap;">
+                <div class="card-title">🔍 후보 기사 검색</div>
+                <div style="display:flex; gap:12px; align-items:flex-end; flex-wrap:wrap; margin-bottom:20px;">
+                    <div class="form-group" style="margin-bottom:0;">
+                        <label class="form-label">시작 일시</label>
+                        <input type="datetime-local" class="form-input" id="searchStart" style="max-width:210px;">
+                    </div>
+                    <div class="form-group" style="margin-bottom:0;">
+                        <label class="form-label">종료 일시</label>
+                        <input type="datetime-local" class="form-input" id="searchEnd" style="max-width:210px;">
+                    </div>
                     <button class="nl-gen-btn" id="searchBtn" onclick="searchNews()">검색 시작</button>
                     <div id="searchProgress" class="search-progress" style="display:none;">
                         <span class="spinner"></span>
@@ -755,6 +763,7 @@
         if (name === 'list') loadNewsList();
         if (name === 'stats') loadStats();
         if (name === 'newsletter') initNewsletterTab();
+        if (name === 'search') initSearchDates();
     }
 
     // ── 토스트 ──
@@ -1600,13 +1609,28 @@
         return 30;
     }
 
+    function initSearchDates() {
+        const now = new Date();
+        const yesterday = new Date(now);
+        yesterday.setDate(yesterday.getDate() - 1);
+        yesterday.setHours(8, 0, 0, 0);
+
+        const toLocal = d => {
+            const offset = d.getTimezoneOffset();
+            return new Date(d.getTime() - offset * 60000).toISOString().slice(0, 16);
+        };
+
+        document.getElementById('searchStart').value = toLocal(yesterday);
+        document.getElementById('searchEnd').value = toLocal(now);
+    }
+
     function isInDateRange(dateStr) {
         const articleDate = new Date(dateStr);
-        const now = new Date();
-        const cutoff = new Date(now);
-        cutoff.setDate(cutoff.getDate() - 1);
-        cutoff.setHours(8, 0, 0, 0);
-        return articleDate >= cutoff && articleDate <= now;
+        const startVal = document.getElementById('searchStart').value;
+        const endVal = document.getElementById('searchEnd').value;
+        const start = startVal ? new Date(startVal) : (() => { const d = new Date(); d.setDate(d.getDate()-1); d.setHours(8,0,0,0); return d; })();
+        const end = endVal ? new Date(endVal) : new Date();
+        return articleDate >= start && articleDate <= end;
     }
 
     const sleep = ms => new Promise(r => setTimeout(r, ms));
