@@ -1590,13 +1590,8 @@
                 progressText.textContent = `"${kw}" 검색 중...`;
                 await sleep(300);
                 try {
-                    const url = `https://openapi.naver.com/v1/search/news.json?query=${encodeURIComponent(kw)}&display=3&sort=date`;
-                    const res = await fetch(url, {
-                        headers: {
-                            'X-Naver-Client-Id': NAVER_CLIENT_ID,
-                            'X-Naver-Client-Secret': NAVER_CLIENT_SECRET
-                        }
-                    });
+                    const url = `/api/search?query=${encodeURIComponent(kw)}`;
+                    const res = await fetch(url);
                     if (!res.ok) continue;
                     const data = await res.json();
                     for (const item of data.items) {
