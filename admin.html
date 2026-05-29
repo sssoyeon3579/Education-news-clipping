@@ -338,6 +338,48 @@
         .imp-urgent { color: #e9460a; font-size: 11px; font-weight: 700; }
         .imp-important { color: #f59e0b; font-size: 11px; font-weight: 700; }
         .imp-positive { color: #10b981; font-size: 11px; font-weight: 700; }
+
+        /* ── 기사 검색 탭 ── */
+        .search-category-section { margin-bottom: 28px; }
+        .search-cat-header {
+            font-size: 14px; font-weight: 700; color: #e9460a;
+            margin-bottom: 8px; padding: 6px 0 8px;
+            border-bottom: 2px solid #fff0eb;
+        }
+        .search-article-card {
+            display: flex; align-items: flex-start; gap: 12px;
+            padding: 11px 12px; border-radius: 10px; cursor: pointer;
+            transition: background 0.12s; border: 1.5px solid transparent;
+            margin-bottom: 4px;
+        }
+        .search-article-card:hover { background: #fafafa; }
+        .search-article-card.selected { background: #fff5f2; border-color: #ffd0c0; }
+        .search-article-cb {
+            width: 16px; height: 16px; accent-color: #e9460a;
+            flex-shrink: 0; margin-top: 3px; cursor: pointer;
+        }
+        .search-article-info { flex: 1; min-width: 0; }
+        .search-article-title {
+            font-size: 14px; font-weight: 600; color: #111;
+            margin-bottom: 5px; line-height: 1.4;
+        }
+        .search-article-title a { color: inherit; text-decoration: none; }
+        .search-article-title a:hover { color: #e9460a; text-decoration: underline; }
+        .search-article-meta { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
+        .search-article-kw {
+            font-size: 11px; background: #f0f0f0; color: #666;
+            padding: 2px 8px; border-radius: 20px;
+        }
+        .search-article-date { font-size: 12px; color: #bbb; }
+        .search-empty { text-align: center; color: #bbb; padding: 40px; font-size: 14px; }
+        .search-copy-bar {
+            display: flex; justify-content: space-between; align-items: center;
+        }
+        .search-copy-bar-left { }
+        .search-copy-bar-title { font-size: 15px; font-weight: 700; color: #111; margin-bottom: 3px; }
+        .search-copy-bar-count { font-size: 13px; color: #999; }
+        .search-progress { font-size: 13px; color: #999; display: flex; align-items: center; }
+        .search-kw-progress { font-size: 12px; color: #bbb; margin-left: 4px; }
     </style>
 </head>
 <body>
@@ -377,6 +419,7 @@
         <button class="tab-btn" onclick="switchTab('list', this)">📋 뉴스 목록</button>
         <button class="tab-btn" onclick="switchTab('stats', this)">📊 통계</button>
         <button class="tab-btn" onclick="switchTab('newsletter', this)">📧 뉴스레터</button>
+        <button class="tab-btn" onclick="switchTab('search', this)">🔍 기사 검색</button>
     </div>
 
     <div class="container">
@@ -560,6 +603,33 @@
                 <div style="margin-top:16px;">
                     <div style="font-size:12px; font-weight:600; color:#aaa; margin-bottom:6px;">HTML 코드 (이메일에 붙여넣기)</div>
                     <textarea class="nl-code-textarea" id="newsletterHtmlCode" readonly></textarea>
+                </div>
+            </div>
+
+        </div>
+
+        <!-- ── 탭5: 기사 검색 ── -->
+        <div id="tab-search" class="tab-content">
+
+            <div class="card">
+                <div class="card-title">🔍 오늘의 후보 기사 검색</div>
+                <div style="display:flex; gap:12px; align-items:center; margin-bottom:24px; flex-wrap:wrap;">
+                    <button class="nl-gen-btn" id="searchBtn" onclick="searchNews()">검색 시작</button>
+                    <div id="searchProgress" class="search-progress" style="display:none;">
+                        <span class="spinner"></span>
+                        <span id="searchProgressText">준비 중...</span>
+                    </div>
+                </div>
+                <div id="searchResults"></div>
+            </div>
+
+            <div id="searchCopyCard" class="card" style="display:none; position:sticky; bottom:24px; box-shadow:0 4px 24px rgba(0,0,0,0.12);">
+                <div class="search-copy-bar">
+                    <div class="search-copy-bar-left">
+                        <div class="search-copy-bar-title">선택한 기사</div>
+                        <div class="search-copy-bar-count" id="searchSelectedCount">0개 선택됨</div>
+                    </div>
+                    <button class="nl-copy-btn" id="searchCopyBtn" onclick="copySelectedArticles()">📋 클로드에 전달 복사</button>
                 </div>
             </div>
 
@@ -1486,6 +1556,141 @@
             document.getElementById('pwInput').focus();
         }
     });
+
+    // ── 기사 검색 ──
+    const NAVER_CLIENT_ID = '4QXSi5IQW7_swkzryOYx';
+    const NAVER_CLIENT_SECRET = 'HCV9s5fvzG';
+
+    const SEARCH_KEYWORDS = {
+        '아이스크림미디어 소식': ['아이스크림미디어', '박기석'],
+        '교육 정책·동향': ['교육부', '교육부 장관', '교육청', 'AI 디지털교과서', '디지털 학습', 'AI 교육', '에듀테크', '에듀플러스'],
+        'AI·테크 동향': ['생성형AI', 'GPT', '소버린AI', 'AGI', '샘올트만', '업스테이지', '피지컬AI'],
+        '에듀테크 기업 소식': ['비상교육', '천재교육', '테크빌', '미래엔', '좋은책신사고', '동아출판', '에듀윌', '웅진씽크빅', '교원그룹', '와이비엠', '금성출판사', '아이스크림에듀', '단꿈아이', '지학사', '에듀템', '메가스터디교육', '엘리스그룹']
+    };
+
+    const sleep = ms => new Promise(r => setTimeout(r, ms));
+
+    async function searchNews() {
+        const btn = document.getElementById('searchBtn');
+        const progress = document.getElementById('searchProgress');
+        const progressText = document.getElementById('searchProgressText');
+        const resultsDiv = document.getElementById('searchResults');
+
+        btn.disabled = true;
+        progress.style.display = 'flex';
+        resultsDiv.innerHTML = '';
+        document.getElementById('searchCopyCard').style.display = 'none';
+
+        const seen = new Set();
+        const categoryResults = {};
+
+        for (const [category, keywords] of Object.entries(SEARCH_KEYWORDS)) {
+            categoryResults[category] = [];
+            for (const kw of keywords) {
+                progressText.textContent = `"${kw}" 검색 중...`;
+                await sleep(300);
+                try {
+                    const url = `https://openapi.naver.com/v1/search/news.json?query=${encodeURIComponent(kw)}&display=3&sort=date`;
+                    const res = await fetch(url, {
+                        headers: {
+                            'X-Naver-Client-Id': NAVER_CLIENT_ID,
+                            'X-Naver-Client-Secret': NAVER_CLIENT_SECRET
+                        }
+                    });
+                    if (!res.ok) continue;
+                    const data = await res.json();
+                    for (const item of data.items) {
+                        const link = item.originallink || item.link;
+                        if (seen.has(link)) continue;
+                        seen.add(link);
+                        const title = item.title.replace(/<[^>]+>/g, '').replace(/&quot;/g, '"').replace(/&amp;/g, '&').replace(/&#039;/g, "'");
+                        categoryResults[category].push({ title, url: link, date: item.pubDate, keyword: kw });
+                    }
+                } catch(e) { console.warn(kw, e); }
+            }
+        }
+
+        btn.disabled = false;
+        progress.style.display = 'none';
+        renderSearchResults(categoryResults);
+    }
+
+    function renderSearchResults(categoryResults) {
+        const resultsDiv = document.getElementById('searchResults');
+        const copyCard = document.getElementById('searchCopyCard');
+        let html = '';
+        let idx = 0;
+
+        for (const [category, articles] of Object.entries(categoryResults)) {
+            if (!articles.length) continue;
+            html += `<div class="search-category-section"><div class="search-cat-header"># ${category}</div>`;
+            for (const a of articles) {
+                const id = `sa_${idx++}`;
+                const safeTitle = a.title.replace(/"/g, '&quot;');
+                const safeUrl = a.url.replace(/"/g, '&quot;');
+                html += `
+                <label class="search-article-card" id="card_${id}" for="${id}">
+                    <input type="checkbox" id="${id}" class="search-article-cb"
+                        data-title="${safeTitle}" data-url="${safeUrl}" data-category="${category}"
+                        onchange="onSearchCheck(this)">
+                    <div class="search-article-info">
+                        <div class="search-article-title">
+                            <a href="${a.url}" target="_blank" onclick="event.stopPropagation()">${a.title}</a>
+                        </div>
+                        <div class="search-article-meta">
+                            <span class="search-article-kw">${a.keyword}</span>
+                            <span class="search-article-date">${formatSearchDate(a.date)}</span>
+                        </div>
+                    </div>
+                </label>`;
+            }
+            html += `</div>`;
+        }
+
+        resultsDiv.innerHTML = html || '<div class="search-empty">검색 결과가 없습니다.</div>';
+        if (html) copyCard.style.display = 'block';
+        updateSearchSelection();
+    }
+
+    function onSearchCheck(cb) {
+        const card = document.getElementById('card_' + cb.id.replace('sa_', 'card_sa_').replace('card_', ''));
+        const label = cb.closest('label');
+        if (label) label.classList.toggle('selected', cb.checked);
+        updateSearchSelection();
+    }
+
+    function formatSearchDate(dateStr) {
+        const d = new Date(dateStr);
+        return `${d.getFullYear()}.${String(d.getMonth()+1).padStart(2,'0')}.${String(d.getDate()).padStart(2,'0')}`;
+    }
+
+    function updateSearchSelection() {
+        const checked = document.querySelectorAll('.search-article-cb:checked');
+        document.getElementById('searchSelectedCount').textContent = `${checked.length}개 선택됨`;
+    }
+
+    function copySelectedArticles() {
+        const checked = document.querySelectorAll('.search-article-cb:checked');
+        if (!checked.length) { showToast('선택된 기사가 없습니다'); return; }
+        const grouped = {};
+        checked.forEach(cb => {
+            const cat = cb.dataset.category;
+            if (!grouped[cat]) grouped[cat] = [];
+            grouped[cat].push({ title: cb.dataset.title, url: cb.dataset.url });
+        });
+        let text = '';
+        for (const [cat, articles] of Object.entries(grouped)) {
+            text += `[${cat}]\n`;
+            articles.forEach(a => { text += `${a.title}\n${a.url}\n\n`; });
+        }
+        navigator.clipboard.writeText(text.trim()).then(() => {
+            const btn = document.getElementById('searchCopyBtn');
+            btn.textContent = '✅ 복사 완료!';
+            btn.classList.add('copied');
+            setTimeout(() => { btn.textContent = '📋 클로드에 전달 복사'; btn.classList.remove('copied'); }, 2000);
+            showToast(`${checked.length}개 기사 복사됨`);
+        });
+    }
 </script>
 
 </body>
