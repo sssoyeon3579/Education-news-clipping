@@ -1698,6 +1698,7 @@
 
         const seen = new Set();
         const categoryResults = {};
+        let dbgFetched = 0, dbgDate = 0, dbgExcluded = 0;
 
         for (const [category, keywords] of Object.entries(SEARCH_KEYWORDS)) {
             categoryResults[category] = [];
@@ -1709,11 +1710,14 @@
                     if (!res.ok) continue;
                     const data = await res.json();
                     for (const item of data.items || []) {
+                        dbgFetched++;
                         const link = item.link || item.originallink;
                         if (seen.has(link)) continue;
-                        if (!isInDateRange(item.pubDate)) continue;
+                        const inRange = isInDateRange(item.pubDate);
+                        if (!inRange) { dbgDate++; continue; }
                         const title = item.title.replace(/<[^>]+>/g, '').replace(/&quot;/g, '"').replace(/&amp;/g, '&').replace(/&#039;/g, "'");
-                        if (isExcluded(title, kw, link)) continue;
+                        const excl = isExcluded(title, kw, link);
+                        if (excl) { dbgExcluded++; continue; }
                         seen.add(link);
                         categoryResults[category].push({
                             title, url: link, date: item.pubDate,
@@ -1728,6 +1732,7 @@
 
         btn.disabled = false;
         progress.style.display = 'none';
+        showToast(`수집:${dbgFetched} / 날짜필터:${dbgDate} / 제외필터:${dbgExcluded}`);
         renderSearchResults(categoryResults);
     }
 
