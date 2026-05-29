@@ -1599,6 +1599,17 @@
         ['zdnet.co.kr', 50],        // ZDNet Korea
     ];
 
+    // 먹는 아이스크림 관련 제외 키워드
+    const EXCLUDE_TERMS = [
+        '베스킨', '하겐다즈', '롯데푸드', '빙과', '아이스바', '빙수',
+        '소프트콘', '아이스크림 판매', '아이스크림 가격', '아이스크림 시장',
+        '아이스크림 매출', '편의점 아이스크림', '아이스크림 할인'
+    ];
+
+    function isExcluded(title) {
+        return EXCLUDE_TERMS.some(term => title.includes(term));
+    }
+
     function getPublisherScore(url) {
         try {
             const domain = new URL(url).hostname.replace('www.', '');
@@ -1662,6 +1673,7 @@
                         const link = item.link || item.originallink;
                         if (seen.has(link)) continue;
                         if (!isInDateRange(item.pubDate)) continue;
+                        if (isExcluded(title)) continue;
                         seen.add(link);
                         const title = item.title.replace(/<[^>]+>/g, '').replace(/&quot;/g, '"').replace(/&amp;/g, '&').replace(/&#039;/g, "'");
                         categoryResults[category].push({
