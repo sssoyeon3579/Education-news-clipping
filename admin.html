@@ -361,7 +361,7 @@
         .search-article-info { flex: 1; min-width: 0; }
         .search-article-title {
             font-size: 14px; font-weight: 600; color: #111;
-            margin-bottom: 5px; line-height: 1.4;
+            margin-bottom: 5px; line-height: 1.5; word-break: keep-all;
         }
         .search-article-title a { color: inherit; text-decoration: none; }
         .search-article-title a:hover { color: #e9460a; text-decoration: underline; }
@@ -1659,7 +1659,7 @@
                     if (!res.ok) continue;
                     const data = await res.json();
                     for (const item of data.items || []) {
-                        const link = item.originallink || item.link;
+                        const link = item.link || item.originallink;
                         if (seen.has(link)) continue;
                         if (!isInDateRange(item.pubDate)) continue;
                         seen.add(link);
