@@ -1558,15 +1558,56 @@
     });
 
     // ── 기사 검색 ──
-    const NAVER_CLIENT_ID = '4QXSi5IQW7_swkzryOYx';
-    const NAVER_CLIENT_SECRET = 'HCV9s5fvzG';
-
     const SEARCH_KEYWORDS = {
-        '아이스크림미디어 소식': ['아이스크림미디어', '박기석'],
-        '교육 정책·동향': ['교육부', '교육부 장관', '교육청', 'AI 디지털교과서', '디지털 학습', 'AI 교육', '에듀테크', '에듀플러스'],
-        'AI·테크 동향': ['생성형AI', 'GPT', '소버린AI', 'AGI', '샘올트만', '업스테이지', '피지컬AI'],
-        '에듀테크 기업 소식': ['비상교육', '천재교육', '테크빌', '미래엔', '좋은책신사고', '동아출판', '에듀윌', '웅진씽크빅', '교원그룹', '와이비엠', '금성출판사', '아이스크림에듀', '단꿈아이', '지학사', '에듀템', '메가스터디교육', '엘리스그룹']
+        '아이스크림미디어 소식': ['아이스크림미디어', '박기석', '아이스크림에듀'],
+        '국가 정책 및 교육 제도 동향': ['교육부', '교육부 장관', '교육청', 'AI 디지털교과서', '디지털 학습', 'AI 교육', '에듀테크', '에듀플러스'],
+        'AI 기술 및 산업 동향': ['생성형AI', 'GPT', '소버린AI', 'AGI', '샘올트만', '업스테이지', '피지컬AI'],
+        '에듀테크 기업 소식': ['비상교육', '천재교육', '테크빌', '미래엔', '좋은책신사고', '동아출판', '에듀윌', '웅진씽크빅', '교원그룹', '와이비엠', '금성출판사', '단꿈아이', '지학사', '에듀템', '메가스터디교육', '엘리스그룹']
     };
+
+    // 언론사 우선순위 (숫자 높을수록 우선)
+    const PUBLISHER_PRIORITY = [
+        ['etnews.com', 100],        // 전자신문 (에듀플러스)
+        ['chosun.com', 95],         // 조선일보
+        ['edaily.co.kr', 92],       // 이데일리
+        ['newsis.com', 90],         // 뉴시스
+        ['aitimes.com', 88],        // AI타임스
+        ['khan.co.kr', 86],         // 경향신문
+        ['mt.co.kr', 84],           // 머니투데이
+        ['donga.com', 82],          // 동아일보
+        ['mk.co.kr', 80],           // 매일경제
+        ['news1.kr', 78],           // 뉴스1
+        ['hani.co.kr', 75],         // 한겨레
+        ['heraldcorp.com', 73],     // 헤럴드경제
+        ['sedaily.com', 70],        // 서울경제
+        ['hankyung.com', 68],       // 한국경제
+        ['it.chosun.com', 65],      // IT조선
+        ['hansbiz.co.kr', 62],      // 한스경제
+        ['etoday.co.kr', 60],       // 이투데이
+        ['yna.co.kr', 58],          // 연합뉴스
+        ['fnnews.com', 55],         // 파이낸셜뉴스
+        ['newspim.com', 53],        // 뉴스핌
+        ['zdnet.co.kr', 50],        // ZDNet Korea
+    ];
+
+    function getPublisherScore(url) {
+        try {
+            const domain = new URL(url).hostname.replace('www.', '');
+            for (const [key, score] of PUBLISHER_PRIORITY) {
+                if (domain.includes(key)) return score;
+            }
+        } catch(e) {}
+        return 30;
+    }
+
+    function isInDateRange(dateStr) {
+        const articleDate = new Date(dateStr);
+        const now = new Date();
+        const cutoff = new Date(now);
+        cutoff.setDate(cutoff.getDate() - 1);
+        cutoff.setHours(8, 0, 0, 0);
+        return articleDate >= cutoff && articleDate <= now;
+    }
 
     const sleep = ms => new Promise(r => setTimeout(r, ms));
 
@@ -1590,19 +1631,24 @@
                 progressText.textContent = `"${kw}" 검색 중...`;
                 await sleep(300);
                 try {
-                    const url = `/api/search?query=${encodeURIComponent(kw)}`;
-                    const res = await fetch(url);
+                    const res = await fetch(`/api/search?query=${encodeURIComponent(kw)}&display=5`);
                     if (!res.ok) continue;
                     const data = await res.json();
-                    for (const item of data.items) {
+                    for (const item of data.items || []) {
                         const link = item.originallink || item.link;
                         if (seen.has(link)) continue;
+                        if (!isInDateRange(item.pubDate)) continue;
                         seen.add(link);
                         const title = item.title.replace(/<[^>]+>/g, '').replace(/&quot;/g, '"').replace(/&amp;/g, '&').replace(/&#039;/g, "'");
-                        categoryResults[category].push({ title, url: link, date: item.pubDate, keyword: kw });
+                        categoryResults[category].push({
+                            title, url: link, date: item.pubDate,
+                            keyword: kw, score: getPublisherScore(link)
+                        });
                     }
                 } catch(e) { console.warn(kw, e); }
             }
+            // 언론사 우선순위 정렬
+            categoryResults[category].sort((a, b) => b.score - a.score);
         }
 
         btn.disabled = false;
@@ -1615,16 +1661,20 @@
         const copyCard = document.getElementById('searchCopyCard');
         let html = '';
         let idx = 0;
+        let total = 0;
 
         for (const [category, articles] of Object.entries(categoryResults)) {
             if (!articles.length) continue;
-            html += `<div class="search-category-section"><div class="search-cat-header"># ${category}</div>`;
+            total += articles.length;
+            html += `<div class="search-category-section"><div class="search-cat-header"># ${category} <span style="font-size:12px;font-weight:400;color:#bbb;">(${articles.length}건)</span></div>`;
             for (const a of articles) {
                 const id = `sa_${idx++}`;
                 const safeTitle = a.title.replace(/"/g, '&quot;');
                 const safeUrl = a.url.replace(/"/g, '&quot;');
+                let domain = '';
+                try { domain = new URL(a.url).hostname.replace('www.', ''); } catch(e) {}
                 html += `
-                <label class="search-article-card" id="card_${id}" for="${id}">
+                <label class="search-article-card" id="lbl_${id}" for="${id}">
                     <input type="checkbox" id="${id}" class="search-article-cb"
                         data-title="${safeTitle}" data-url="${safeUrl}" data-category="${category}"
                         onchange="onSearchCheck(this)">
@@ -1634,6 +1684,7 @@
                         </div>
                         <div class="search-article-meta">
                             <span class="search-article-kw">${a.keyword}</span>
+                            <span class="search-article-kw" style="background:#e8f4fd;color:#2196F3;">${domain}</span>
                             <span class="search-article-date">${formatSearchDate(a.date)}</span>
                         </div>
                     </div>
@@ -1642,21 +1693,21 @@
             html += `</div>`;
         }
 
-        resultsDiv.innerHTML = html || '<div class="search-empty">검색 결과가 없습니다.</div>';
-        if (html) copyCard.style.display = 'block';
+        if (!html) html = '<div class="search-empty">해당 시간대 기사가 없습니다.<br><span style="font-size:12px;color:#ccc;">어제 오전 8시 ~ 현재</span></div>';
+        resultsDiv.innerHTML = html;
+        if (total > 0) copyCard.style.display = 'block';
         updateSearchSelection();
     }
 
     function onSearchCheck(cb) {
-        const card = document.getElementById('card_' + cb.id.replace('sa_', 'card_sa_').replace('card_', ''));
-        const label = cb.closest('label');
+        const label = document.getElementById('lbl_' + cb.id);
         if (label) label.classList.toggle('selected', cb.checked);
         updateSearchSelection();
     }
 
     function formatSearchDate(dateStr) {
         const d = new Date(dateStr);
-        return `${d.getFullYear()}.${String(d.getMonth()+1).padStart(2,'0')}.${String(d.getDate()).padStart(2,'0')}`;
+        return `${String(d.getMonth()+1).padStart(2,'0')}/${String(d.getDate()).padStart(2,'0')} ${String(d.getHours()).padStart(2,'0')}:${String(d.getMinutes()).padStart(2,'0')}`;
     }
 
     function updateSearchSelection() {
