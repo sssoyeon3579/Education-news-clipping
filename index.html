@@ -1047,8 +1047,7 @@
                 data.forEach(item => {
                     const cat = item.category;
                     if (!newsDataByCategory[cat]) newsDataByCategory[cat] = [];
-                    if (!newsDataByCategory[cat].find(n => n.url === item.url)) {
-                        newsDataByCategory[cat].push({
+                    const newItem = {
                             date: item.date,
                             title: item.title,
                             summary: item.summary || '',
@@ -1056,7 +1055,12 @@
                             importance: item.importance || 'important',
                             url: item.url,
                             imageUrl: item.image_url || ''
-                        });
+                        };
+                    const existingIdx = newsDataByCategory[cat].findIndex(n => n.url === item.url);
+                    if (existingIdx >= 0) {
+                        newsDataByCategory[cat][existingIdx] = newItem;
+                    } else {
+                        newsDataByCategory[cat].push(newItem);
                         newsDataByCategory[cat].sort((a, b) => b.date.localeCompare(a.date));
                     }
                 });
