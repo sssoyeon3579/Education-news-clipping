@@ -1418,7 +1418,7 @@
         const btn = document.getElementById('newsletterGenBtn');
         btn.disabled = true; btn.textContent = '생성 중...';
 
-        const { data, error } = await supa.from('news').select('*').eq('date', date);
+        const { data, error } = await supa.from('news').select('*').eq('date', date).order('sort_order', { ascending: true });
 
         if (error) { btn.disabled = false; btn.textContent = '뉴스레터 생성'; showToast('데이터를 불러오지 못했어요'); return; }
         if (!data || !data.length) { btn.disabled = false; btn.textContent = '뉴스레터 생성'; showToast('해당 날짜에 등록된 기사가 없습니다'); return; }
