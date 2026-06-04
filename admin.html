@@ -1393,6 +1393,24 @@
         });
     }
 
+    async function fetchImageForUrl(articleUrl) {
+        const cache = (() => { try { return JSON.parse(localStorage.getItem('icm_thumbCache') || '{}'); } catch(e) { return {}; } })();
+        if (cache[articleUrl] !== undefined) return cache[articleUrl];
+        for (const makeProxy of PROXIES) {
+            try {
+                const res = await fetch(makeProxy(articleUrl), { signal: AbortSignal.timeout(7000) });
+                if (!res.ok) continue;
+                const img = extractOgData(await res.text()).image;
+                cache[articleUrl] = img || '';
+                try { localStorage.setItem('icm_thumbCache', JSON.stringify(cache)); } catch(e) {}
+                if (img) return img;
+            } catch(e) { continue; }
+        }
+        cache[articleUrl] = '';
+        try { localStorage.setItem('icm_thumbCache', JSON.stringify(cache)); } catch(e) {}
+        return '';
+    }
+
     async function generateNewsletter() {
         const date = document.getElementById('newsletterDate').value;
         if (!date) { showToast('날짜를 선택해주세요'); return; }
@@ -1402,10 +1420,19 @@
 
         const { data, error } = await supa.from('news').select('*').eq('date', date);
 
-        btn.disabled = false; btn.textContent = '뉴스레터 생성';
+        if (error) { btn.disabled = false; btn.textContent = '뉴스레터 생성'; showToast('데이터를 불러오지 못했어요'); return; }
+        if (!data || !data.length) { btn.disabled = false; btn.textContent = '뉴스레터 생성'; showToast('해당 날짜에 등록된 기사가 없습니다'); return; }
 
-        if (error) { showToast('데이터를 불러오지 못했어요'); return; }
-        if (!data || !data.length) { showToast('해당 날짜에 등록된 기사가 없습니다'); return; }
+        // 이미지 없는 기사: 홈페이지와 동일한 방식으로 OG 이미지 수집
+        const missing = data.filter(n => !n.image_url);
+        if (missing.length) {
+            btn.textContent = `이미지 수집 중... (${missing.length}건)`;
+            await Promise.allSettled(
+                missing.map(n => fetchImageForUrl(n.url).then(img => { if (img) n.image_url = img; }))
+            );
+        }
+
+        btn.disabled = false; btn.textContent = '뉴스레터 생성';
 
         // 카테고리별 그룹핑
         const grouped = {};
