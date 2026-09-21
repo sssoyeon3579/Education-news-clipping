@@ -2053,7 +2053,7 @@
                             url: item.url,
                             imageUrl: item.image_url || ''
                         };
-                    const existingIdx = newsDataByCategory[cat].findIndex(n => n.url === item.url);
+                    const existingIdx = newsDataByCategory[cat].findIndex(n => n.url === item.url && n.date === item.date);
                     if (existingIdx >= 0) {
                         newsDataByCategory[cat][existingIdx] = newItem;
                     } else {
