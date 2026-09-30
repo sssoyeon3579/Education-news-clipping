@@ -2111,9 +2111,18 @@
 
         async function mergeSupabaseNews() {
             try {
-                const { data } = await _supa.from('news').select('*').order('date', { ascending: false }).order('sort_order', { ascending: true }).limit(9999);
-                if (!data || data.length === 0) return;
-                data.forEach(item => {
+                // 페이지네이션으로 전체 데이터 로드 (서버 max-rows=1000 우회)
+                let allData = [];
+                const pageSize = 1000;
+                const [p0, p1, p2, p3] = await Promise.all([
+                    _supa.from('news').select('*').order('date', { ascending: false }).order('sort_order', { ascending: true }).range(0, 999),
+                    _supa.from('news').select('*').order('date', { ascending: false }).order('sort_order', { ascending: true }).range(1000, 1999),
+                    _supa.from('news').select('*').order('date', { ascending: false }).order('sort_order', { ascending: true }).range(2000, 2999),
+                    _supa.from('news').select('*').order('date', { ascending: false }).order('sort_order', { ascending: true }).range(3000, 3999),
+                ]);
+                [p0, p1, p2, p3].forEach(({ data }) => { if (data && data.length) allData = allData.concat(data); });
+                if (allData.length === 0) return;
+                allData.forEach(item => {
                     const cat = item.category;
                     if (!newsDataByCategory[cat]) newsDataByCategory[cat] = [];
                     const newItem = {
