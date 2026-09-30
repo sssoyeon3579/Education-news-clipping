@@ -2111,7 +2111,7 @@
 
         async function mergeSupabaseNews() {
             try {
-                const { data } = await _supa.from('news').select('*').order('date', { ascending: false }).order('sort_order', { ascending: true });
+                const { data } = await _supa.from('news').select('*').order('date', { ascending: false }).order('sort_order', { ascending: true }).limit(9999);
                 if (!data || data.length === 0) return;
                 data.forEach(item => {
                     const cat = item.category;
